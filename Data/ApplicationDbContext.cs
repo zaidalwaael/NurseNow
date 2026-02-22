@@ -1,0 +1,44 @@
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using NurseNow.Models;
+
+namespace NurseNow.Data
+{
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    {
+        public DbSet<NurseProfile> NurseProfiles { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<Complaint> Complaints { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+        // ✅ أضف هذا الجزء
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            // Precision for money
+            builder.Entity<Payment>()
+                .Property(p => p.Amount)
+                .HasPrecision(18, 2);
+
+            // 🔥 Fix Multiple Cascade Path Problem
+            builder.Entity<Booking>()
+                .HasOne(b => b.Patient)
+                .WithMany()
+                .HasForeignKey(b => b.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Booking>()
+                .HasOne(b => b.Nurse)
+                .WithMany()
+                .HasForeignKey(b => b.NurseId)
+                .OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+}
