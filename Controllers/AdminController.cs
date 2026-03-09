@@ -45,12 +45,16 @@ namespace NurseNow.Controllers
                 nurseProfile.VerificationStatus,
 
                 ProfileImageUrl = nurseProfile.ProfileImagePath != null
-                    ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
-                    : null,
+                   ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
+                   : null,
 
                 CertificateUrl = nurseProfile.CertificatePath != null
-                    ? $"{baseUrl}/{nurseProfile.CertificatePath}"
-                    : null
+                   ? $"{baseUrl}/{nurseProfile.CertificatePath}"
+                   : null,
+
+                NationalIdImageUrl = nurseProfile.NationalIdImagePath != null
+                   ? $"{baseUrl}/{nurseProfile.NationalIdImagePath}"
+                   : null
             });
         }
         // 🔥 Approve or Reject Nurse
@@ -76,7 +80,9 @@ namespace NurseNow.Controllers
                     string.IsNullOrEmpty(nurseProfile.Address) ||
                     string.IsNullOrEmpty(nurseProfile.Location) ||
                     string.IsNullOrEmpty(nurseProfile.NationalId) ||
-                    string.IsNullOrEmpty(nurseProfile.CertificatePath))
+                    string.IsNullOrEmpty(nurseProfile.NationalIdImagePath) ||
+                    string.IsNullOrEmpty(nurseProfile.CertificatePath) ||
+                    string.IsNullOrEmpty(nurseProfile.LicenseNumber))
                 {
                     return BadRequest("Nurse profile is incomplete. Cannot approve.");
                 }

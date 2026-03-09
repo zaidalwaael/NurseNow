@@ -11,6 +11,7 @@ namespace NurseNow.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Service> Services { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -39,6 +40,18 @@ namespace NurseNow.Data
                 .WithMany()
                 .HasForeignKey(b => b.NurseId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            builder.Entity<Service>()
+           .HasOne(s => s.Nurse)
+           .WithMany()
+           .HasForeignKey(s => s.NurseId)
+           .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Service>()
+            .Property(s => s.Price)
+            .HasPrecision(18, 2);
+
         }
     }
 }
