@@ -7,6 +7,8 @@ using NurseNow.Models;
 using System.Text;
 using NurseNow.Seed;
 using NurseNow.Helpers;
+using NurseNow.Services;  
+using NurseNow.Settings;   
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -94,6 +96,12 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 builder.Services.AddScoped<JwtService>();
+
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 // =============================
 // 5️⃣ Build App
 // =============================
@@ -110,6 +118,8 @@ using (var scope = app.Services.CreateScope())
 
     await RoleSeeder.SeedRolesAndAdminAsync(roleManager, userManager);
 }
+
+
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
