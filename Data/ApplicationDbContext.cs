@@ -12,6 +12,7 @@ namespace NurseNow.Data
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Service> Services { get; set; }
+        public DbSet<ServiceCatalog> ServiceCatalogs { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -51,6 +52,16 @@ namespace NurseNow.Data
             builder.Entity<Service>()
             .Property(s => s.Price)
             .HasPrecision(18, 2);
+
+            builder.Entity<Service>()
+    .HasOne(s => s.ServiceCatalog)
+    .WithMany()
+    .HasForeignKey(s => s.ServiceCatalogId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Service>()
+                .Property(s => s.Price)
+                .HasPrecision(18, 2);
 
         }
     }

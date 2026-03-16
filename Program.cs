@@ -7,8 +7,9 @@ using NurseNow.Models;
 using System.Text;
 using NurseNow.Seed;
 using NurseNow.Helpers;
-using NurseNow.Services;  
-using NurseNow.Settings;   
+using NurseNow.Services;
+using NurseNow.Settings;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -115,12 +116,19 @@ using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
     await RoleSeeder.SeedRolesAndAdminAsync(roleManager, userManager);
+    await ServiceCatalogSeeder.SeedServiceCatalogAsync(context);
 }
 
+app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseHttpsRedirection();
 
 app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
