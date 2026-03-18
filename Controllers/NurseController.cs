@@ -388,5 +388,246 @@ namespace NurseNow.Controllers
 
             return Ok("Service deleted successfully.");
         }
+
+
+
+        [HttpGet("weekly-availability")]
+        public async Task<IActionResult> GetWeeklyAvailability()
+        {
+            var userId = GetCurrentUserId();
+
+            var weeklySchedule = await _context.WeeklyAvailabilities
+                .Where(w => w.NurseId == userId)
+                .OrderBy(w => w.WeeklyAvailabilityId)
+                .Select(w => new
+                {
+                    w.WeeklyAvailabilityId,
+                    w.DayOfWeek,
+                    startTime = w.StartTime.ToString(@"hh\:mm"),
+                    endTime = w.EndTime.ToString(@"hh\:mm"),
+                    w.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(weeklySchedule);
+        }
+
+
+
+        [HttpPost("weekly-availability")]
+        public async Task<IActionResult> AddWeeklyAvailability([FromBody] AddWeeklyAvailabilityDto model)
+        {
+            var userId = GetCurrentUserId();
+
+            if (model.StartTime >= model.EndTime)
+                return BadRequest("Start time must be earlier than end time.");
+
+            var validDays = new[]
+            {
+        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+    };
+
+            if (!validDays.Contains(model.DayOfWeek))
+                return BadRequest("Invalid day of week.");
+
+            var alreadyExists = await _context.WeeklyAvailabilities.AnyAsync(w =>
+                w.NurseId == userId &&
+                w.DayOfWeek == model.DayOfWeek &&
+                w.StartTime == model.StartTime &&
+                w.EndTime == model.EndTime);
+
+            if (alreadyExists)
+                return BadRequest("This time slot already exists.");
+
+            var availability = new WeeklyAvailability
+            {
+                NurseId = userId!,
+                DayOfWeek = model.DayOfWeek,
+                StartTime = model.StartTime,
+                EndTime = model.EndTime,
+                IsActive = true
+            };
+
+            _context.WeeklyAvailabilities.Add(availability);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Working hours added successfully.",
+                availabilityId = availability.WeeklyAvailabilityId
+            });
+        }
+
+
+
+        [HttpDelete("weekly-availability/{id}")]
+        public async Task<IActionResult> DeleteWeeklyAvailability(int id)
+        {
+            var userId = GetCurrentUserId();
+
+            var availability = await _context.WeeklyAvailabilities
+                .FirstOrDefaultAsync(w => w.WeeklyAvailabilityId == id && w.NurseId == userId);
+
+            if (availability == null)
+                return NotFound("Weekly availability not found.");
+
+            _context.WeeklyAvailabilities.Remove(availability);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Weekly availability deleted successfully."
+            });
+        }
+
+
+        [HttpGet("availability/day-details")]
+        public async Task<IActionResult> GetDayDetails([FromQuery] DateTime date)
+        {
+            var userId = GetCurrentUserId();
+
+            var dayOfWeek = date.DayOfWeek.ToString();
+
+            var weeklyAvailability = await _context.WeeklyAvailabilities
+                .Where(w => w.NurseId == userId && w.DayOfWeek == dayOfWeek && w.IsActive)
+                .Select(w => new
+                {
+                    w.WeeklyAvailabilityId,
+                    w.DayOfWeek,
+                    startTime = w.StartTime.ToString(@"hh\:mm"),
+                    endTime = w.EndTime.ToString(@"hh\:mm")
+                })
+                .FirstOrDefaultAsync();
+
+            var overrideRecord = await _context.AvailabilityOverrides
+                .Where(o => o.NurseId == userId && o.Date.Date == date.Date)
+                .Select(o => new
+                {
+                    o.AvailabilityOverrideId,
+                    date = o.Date.ToString("yyyy-MM-dd"),
+                    startTime = o.StartTime.HasValue ? o.StartTime.Value.ToString(@"hh\:mm") : null,
+                    endTime = o.EndTime.HasValue ? o.EndTime.Value.ToString(@"hh\:mm") : null,
+                    o.IsBlocked
+                })
+                .FirstOrDefaultAsync();
+
+            // Placeholder until booking system is implemented
+            var bookedAppointments = new List<object>();
+
+            return Ok(new
+            {
+                selectedDate = date.ToString("yyyy-MM-dd"),
+                dayOfWeek,
+                defaultWorkingHours = weeklyAvailability,
+                dayOverride = overrideRecord,
+                bookedAppointments
+            });
+        }
+
+
+
+
+
+        [HttpPost("availability/override")]
+        public async Task<IActionResult> OverrideDayAvailability([FromBody] OverrideDayAvailabilityDto model)
+        {
+            var userId = GetCurrentUserId();
+
+            if (model.StartTime >= model.EndTime)
+                return BadRequest("Start time must be earlier than end time.");
+
+            var existingOverride = await _context.AvailabilityOverrides
+                .FirstOrDefaultAsync(o => o.NurseId == userId && o.Date.Date == model.Date.Date);
+
+            if (existingOverride != null)
+            {
+                existingOverride.StartTime = model.StartTime;
+                existingOverride.EndTime = model.EndTime;
+                existingOverride.IsBlocked = false;
+            }
+            else
+            {
+                var newOverride = new AvailabilityOverride
+                {
+                    NurseId = userId!,
+                    Date = model.Date.Date,
+                    StartTime = model.StartTime,
+                    EndTime = model.EndTime,
+                    IsBlocked = false
+                };
+
+                _context.AvailabilityOverrides.Add(newOverride);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Day working hours overridden successfully."
+            });
+        }
+
+
+
+        [HttpPost("availability/block-day")]
+        public async Task<IActionResult> BlockDay([FromBody] BlockDayDto model)
+        {
+            var userId = GetCurrentUserId();
+
+            var existingOverride = await _context.AvailabilityOverrides
+                .FirstOrDefaultAsync(o => o.NurseId == userId && o.Date.Date == model.Date.Date);
+
+            if (existingOverride != null)
+            {
+                existingOverride.StartTime = null;
+                existingOverride.EndTime = null;
+                existingOverride.IsBlocked = true;
+            }
+            else
+            {
+                var blockedDay = new AvailabilityOverride
+                {
+                    NurseId = userId!,
+                    Date = model.Date.Date,
+                    StartTime = null,
+                    EndTime = null,
+                    IsBlocked = true
+                };
+
+                _context.AvailabilityOverrides.Add(blockedDay);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Day blocked successfully."
+            });
+        }
+
+
+
+        [HttpDelete("availability/override")]
+        public async Task<IActionResult> RemoveDayOverride([FromQuery] DateTime date)
+        {
+            var userId = GetCurrentUserId();
+
+            var overrideRecord = await _context.AvailabilityOverrides
+                .FirstOrDefaultAsync(o => o.NurseId == userId && o.Date.Date == date.Date);
+
+            if (overrideRecord == null)
+                return NotFound("No override found for this date.");
+
+            _context.AvailabilityOverrides.Remove(overrideRecord);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Day override removed successfully."
+            });
+        }
+
+
+
     }
 }

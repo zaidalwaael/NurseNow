@@ -13,6 +13,8 @@ namespace NurseNow.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<Service> Services { get; set; }
         public DbSet<ServiceCatalog> ServiceCatalogs { get; set; }
+        public DbSet<WeeklyAvailability> WeeklyAvailabilities { get; set; }
+        public DbSet<AvailabilityOverride> AvailabilityOverrides { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -63,6 +65,27 @@ namespace NurseNow.Data
                 .Property(s => s.Price)
                 .HasPrecision(18, 2);
 
+            builder.Entity<WeeklyAvailability>()
+                      .HasOne(w => w.Nurse)
+                 .WithMany()
+          .HasForeignKey(w => w.NurseId)
+          .OnDelete(DeleteBehavior.Restrict);
+
+                 builder.Entity<AvailabilityOverride>()
+                .HasOne(o => o.Nurse)
+                .WithMany()
+                .HasForeignKey(o => o.NurseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
+
+
+
+
+
+
         }
+
+
     }
 }

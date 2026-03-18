@@ -32,6 +32,8 @@ namespace NurseNow.Controllers
         public IActionResult NurseOnly()
         {
             return Ok("You are a Nurse");
+
         }
+
     }
 }
