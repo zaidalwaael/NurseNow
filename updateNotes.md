@@ -1,153 +1,258 @@
-﻿# Availability Module Documentation
+﻿# Nurse Browse Section Documentation
 
 ## Overview
-The Availability Module allows nurses to manage their working schedule using:
-- Weekly recurring availability (default schedule)
-- Day-specific overrides
-- Blocking specific days
-- Managing time slots
+This documentation explains the backend work completed for the **Patient Browse Nurses section**.
+
+The goal of this section is to allow the patient to:
+- browse approved nurses
+- search by nurse name, specialty, or location
+- filter by service
+- filter by location (governorate)
+- load more nurses using pagination / infinite scroll
 
 ---
 
-## Data Models
+## Endpoint
 
-### WeeklyAvailability
-{
-  "id": 1,
-  "nurseId": "user-id",
-  "dayOfWeek": 1,
-  "startTime": "09:00",
-  "endTime": "17:00",
-  "isActive": true
-}
+### Method
+`GET`
 
-### AvailabilityOverride
-{
-  "id": 10,
-  "nurseId": "user-id",
-  "date": "2026-06-15",
-  "isBlocked": false,
-  "startTime": "12:00",
-  "endTime": "18:00"
-}
+### Route
+`/api/patient/nurses/browse`
+
+### Authorization
+Requires a valid JWT token for a user with role:
+
+`Patient`
 
 ---
 
-## API Endpoints
+## Query Parameters
 
-### 1. Add Weekly Availability
-POST /api/nurse/availability/weekly
-
-Request:
-{
-  "dayOfWeek": 1,
-  "startTime": "09:00",
-  "endTime": "17:00"
-}
-
-Response:
-{
-  "message": "Availability added successfully"
-}
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `search` | string | No | Search by nurse name, specialty, or location |
+| `serviceCatalogId` | int | No | Filter by selected service |
+| `location` | string | No | Filter by governorate |
+| `pageNumber` | int | No | Page number for pagination |
+| `pageSize` | int | No | Number of items per page |
 
 ---
 
-### 2. Get Weekly Availability
-GET /api/nurse/availability/weekly
+## Search Logic
 
-Response:
-[
-  {
-    "dayOfWeek": 1,
-    "startTime": "09:00",
-    "endTime": "17:00",
-    "isActive": true
-  }
-]
+The `search` field matches any of:
 
----
+- `FullName`
+- `Specialization`
+- `Location`
 
-### 3. Delete Weekly Slot
-DELETE /api/nurse/availability/weekly/{id}
+This means the patient can type:
+- nurse name
+- specialty
+- location
 
-Response:
-{
-  "message": "Slot deleted successfully"
-}
+and get matching results.
 
 ---
 
-### 4. Toggle Slot
-PUT /api/nurse/availability/weekly/toggle/{id}
+## Filtering Logic
 
-Response:
-{
-  "message": "Slot status updated"
-}
+### 1) Filter by Service
+If `serviceCatalogId` is sent:
+- only nurses who provide this service are returned
+
+### 2) Filter by Location
+If `location` is sent:
+- only nurses in that governorate are returned
+
+### 3) Filter by Service + Location
+Both filters can be used together.
 
 ---
 
-### 5. Get Day Details
-GET /api/nurse/availability/day?date=2026-06-15
+## Sorting Logic
 
-Response:
+### Default Sorting
+If no location filter is applied:
+- results are sorted by **rating descending**
+- currently, since rating is not implemented yet, the temporary sorting uses:
+  - `ExperienceYears DESC`
+
+### Sorting when Location Filter Exists
+If `location` is applied:
+- results are sorted by **Address ascending**
+- this helps organize nurses alphabetically by area inside the governorate
+
+---
+
+## Pagination Logic
+
+The endpoint supports pagination using:
+- `pageNumber`
+- `pageSize`
+
+This is useful for infinite scroll in Flutter.
+
+### Example
+```http
+GET /api/patient/nurses/browse?pageNumber=1&pageSize=10
+```
+
+### Example with filters
+```http
+GET /api/patient/nurses/browse?search=critical&serviceCatalogId=1&location=Amman&pageNumber=1&pageSize=10
+```
+
+---
+
+## Returned Data
+
+Each nurse item includes:
+
+- `nurseId`
+- `fullName`
+- `specialization`
+- `location`
+- `address`
+- `experienceYears`
+- `profileImageUrl`
+- `rating`
+- `reviewsCount`
+- `price`
+- `availabilityLabel`
+
+---
+
+## Price Logic
+
+### If `serviceCatalogId` is provided
+The API returns:
+- the nurse price for that specific service
+
+### If no service filter is provided
+The API returns:
+- the minimum service price for that nurse
+
+---
+
+## Availability Label Logic
+
+Currently, the API uses a simple availability rule:
+
+- if the nurse has active weekly availability:
+  - `Available This Week`
+- otherwise:
+  - `Unavailable`
+
+This is a temporary version until booking integration is implemented.
+
+---
+
+## Profile Image URL
+
+The API returns a **full image URL**, not just the stored path.
+
+### Example
+```json
+"profileImageUrl": "https://localhost:5001/uploads/abc.jpg"
+```
+
+This is generated using:
+
+- `Request.Scheme`
+- `Request.Host`
+- stored `ProfileImagePath`
+
+---
+
+## Request Example
+
+```http
+GET /api/patient/nurses/browse?search=critical&serviceCatalogId=1&location=Amman&pageNumber=1&pageSize=10
+```
+
+---
+
+## Response Example
+
+```json
 {
-  "date": "2026-06-15",
-  "isBlocked": false,
-  "timeSlots": [
+  "pageNumber": 1,
+  "pageSize": 10,
+  "totalCount": 3,
+  "totalPages": 1,
+  "hasNextPage": false,
+  "items": [
     {
-      "startTime": "09:00",
-      "endTime": "17:00"
+      "nurseId": "123",
+      "fullName": "Sarah Hassan",
+      "specialization": "Critical Care",
+      "location": "Amman",
+      "address": "Abdali",
+      "experienceYears": 8,
+      "profileImageUrl": "https://localhost:5001/uploads/abc.jpg",
+      "rating": 0.0,
+      "reviewsCount": 0,
+      "price": 25.0,
+      "availabilityLabel": "Available This Week"
     }
-  ],
-  "hasOverride": false,
-  "bookedAppointments": []
+  ]
 }
+```
 
 ---
 
-### 6. Override Day
-POST /api/nurse/availability/day/override
+## Current Notes
 
-Request:
-{
-  "date": "2026-06-15",
-  "startTime": "12:00",
-  "endTime": "18:00"
-}
+### Rating
+The default sorting requirement is:
+- by rating descending
 
-Response:
-{
-  "message": "Day overridden successfully"
-}
+However, since the rating system is not implemented yet, the current temporary fallback is:
+- sort by `ExperienceYears DESC`
 
----
+### Reviews Count
+Currently returned as:
+- `0`
 
-### 7. Block Day
-POST /api/nurse/availability/day/block
-
-Request:
-{
-  "date": "2026-06-15"
-}
-
-Response:
-{
-  "message": "Day blocked successfully"
-}
+until review/rating system is implemented.
 
 ---
 
-### 8. Unblock Day
-DELETE /api/nurse/availability/day/unblock?date=2026-06-15
+## Backend Dependencies Used
 
-Response:
-{
-  "message": "Day unblocked successfully"
-}
+The endpoint depends on:
+- `AspNetUsers`
+- `NurseProfiles`
+- `Services`
+- `ServiceCatalog`
+- `WeeklyAvailabilities`
+
+---
+
+## Flutter Usage
+
+The patient home page or browse screen can use this endpoint to:
+
+1. load the first page of nurses
+2. search by text
+3. filter by service
+4. filter by location
+5. load more on scroll using pagination
 
 ---
 
 ## Status
-✔ Backend Completed
-⏳ Booking Integration Pending
+
+✔ Browse Nurses endpoint implemented  
+✔ Search logic implemented  
+✔ Service filter implemented  
+✔ Location filter implemented  
+✔ Pagination implemented  
+✔ Full profile image URL implemented  
+
+⏳ Pending:
+- real rating system
+- reviews count
+- booking-aware availability
