@@ -627,6 +627,131 @@ namespace NurseNow.Controllers
             });
         }
 
+        [HttpGet("requests")]
+        public async Task<IActionResult> GetNurseRequests([FromQuery] string? status)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var query = _context.Bookings
+                .Include(b => b.Patient)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .Where(b => b.NurseId == nurseId)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query = query.Where(b => b.Status == status);
+            }
+
+            var requests = await query
+                .OrderByDescending(b => b.BookingDate)
+                .ThenBy(b => b.StartTime)
+                .Select(b => new
+                {
+                    bookingId = b.BookingId,
+                    patientName = b.Patient.FullName,
+                    patientPhone = b.Patient.PhoneNumber,
+                    serviceName = b.Service.ServiceCatalog.Name,
+                    date = b.BookingDate.ToString("yyyy-MM-dd"),
+                    time = b.StartTime.ToString(@"hh\:mm"),
+                    location = b.ServiceAddress,
+                    durationInMinutes = b.Service.ServiceCatalog.DefaultDurationInMinutes,
+                    totalPrice = b.Service.Price,
+                    notes = b.AdditionalNotes,
+                    status = b.Status
+                })
+                .ToListAsync();
+
+            return Ok(requests);
+        }
+
+
+
+        [HttpGet("requests/{bookingId}")]
+        public async Task<IActionResult> GetRequestDetails(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .Include(b => b.Patient)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Request not found.");
+
+            return Ok(new
+            {
+                bookingId = booking.BookingId,
+                patientName = booking.Patient.FullName,
+                contact = booking.Patient.PhoneNumber,
+                serviceType = booking.Service.ServiceCatalog.Name,
+                date = booking.BookingDate.ToString("yyyy-MM-dd"),
+                time = booking.StartTime.ToString(@"hh\:mm"),
+                location = booking.ServiceAddress,
+                durationInMinutes = booking.Service.ServiceCatalog.DefaultDurationInMinutes,
+                payment = booking.Service.Price,
+                additionalNotes = booking.AdditionalNotes,
+                status = booking.Status
+            });
+        }
+
+
+        [HttpPut("requests/{bookingId}/accept")]
+        public async Task<IActionResult> AcceptRequest(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Request not found.");
+
+            if (booking.Status != "Pending")
+                return BadRequest("Only pending requests can be accepted.");
+
+            booking.Status = "Accepted";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Request accepted successfully.",
+                status = booking.Status
+            });
+        }
+
+
+        [HttpPut("requests/{bookingId}/decline")]
+        public async Task<IActionResult> DeclineRequest(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Request not found.");
+
+            if (booking.Status != "Pending")
+                return BadRequest("Only pending requests can be declined.");
+
+            booking.Status = "Rejected";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Request declined successfully.",
+                status = booking.Status
+            });
+        }
+
+
+
 
 
     }

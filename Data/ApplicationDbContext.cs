@@ -67,13 +67,11 @@ namespace NurseNow.Data
 
 
 
-
-
             builder.Entity<Booking>()
-    .HasOne(b => b.Patient)
-    .WithMany()
-    .HasForeignKey(b => b.PatientId)
-    .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(b => b.Patient)
+                .WithMany()
+                .HasForeignKey(b => b.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Booking>()
                 .HasOne(b => b.Nurse)
