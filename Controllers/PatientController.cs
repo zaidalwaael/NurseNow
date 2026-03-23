@@ -529,6 +529,75 @@ namespace NurseNow.Controllers
         }
 
 
+        [HttpGet("appointments/{bookingId}")]
+        public async Task<IActionResult> GetAppointmentDetails(int bookingId)
+        {
+            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
+
+            var booking = await _context.Bookings
+                .Include(b => b.Nurse)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Appointment not found.");
+
+            var nurseProfile = await _context.NurseProfiles
+                .FirstOrDefaultAsync(n => n.UserId == booking.NurseId);
+
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            return Ok(new
+            {
+                bookingId = booking.BookingId,
+                nurseName = booking.Nurse.FullName,
+                profileImageUrl = nurseProfile != null && nurseProfile.ProfileImagePath != null
+                    ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
+                    : null,
+                phoneNumber = nurseProfile?.PhoneNumber,
+                serviceName = booking.Service.ServiceCatalog.Name,
+                date = booking.BookingDate.ToString("yyyy-MM-dd"),
+                time = booking.StartTime.ToString(@"hh\:mm"),
+                address = booking.ServiceAddress,
+                durationInMinutes = booking.Service.ServiceCatalog.DefaultDurationInMinutes,
+                totalPrice = booking.Service.Price,
+                additionalNotes = booking.AdditionalNotes,
+                status = booking.Status
+            });
+        }
+
+
+        [HttpPut("appointments/{bookingId}/cancel")]
+        public async Task<IActionResult> CancelAppointment(int bookingId)
+        {
+            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Appointment not found.");
+
+            if (booking.Status != "Pending" && booking.Status != "Accepted")
+                return BadRequest("Only pending or accepted appointments can be cancelled.");
+
+            booking.Status = "Cancelled";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Appointment cancelled successfully.",
+                status = booking.Status
+            });
+        }
 
 
     }

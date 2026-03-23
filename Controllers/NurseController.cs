@@ -750,8 +750,150 @@ namespace NurseNow.Controllers
             });
         }
 
+        [HttpGet("appointments")]
+        public async Task<IActionResult> GetNurseAppointments([FromQuery] string tab = "upcoming")
+        {
+            var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
+
+            var today = DateTime.Today;
+
+            var query = _context.Bookings
+                .Include(b => b.Patient)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .Where(b => b.NurseId == nurseId)
+                .AsQueryable();
+
+            if (tab.ToLower() == "today")
+            {
+                query = query.Where(b =>
+                    b.BookingDate.Date == today &&
+                    (b.Status == "Accepted" || b.Status == "Active"));
+            }
+            else if (tab.ToLower() == "upcoming")
+            {
+                query = query.Where(b =>
+                    b.BookingDate.Date > today &&
+                    (b.Status == "Pending" || b.Status == "Accepted" || b.Status == "Active"));
+            }
+            else if (tab.ToLower() == "past")
+            {
+                query = query.Where(b =>
+                    b.Status == "Completed" ||
+                    b.Status == "Cancelled" ||
+                    b.Status == "Rejected" ||
+                    b.BookingDate.Date < today);
+            }
+            else
+            {
+                return BadRequest("Invalid tab value. Use 'today', 'upcoming', or 'past'.");
+            }
+
+            var appointments = await query
+                .OrderBy(b => b.BookingDate)
+                .ThenBy(b => b.StartTime)
+                .Select(b => new
+                {
+                    bookingId = b.BookingId,
+                    patientName = b.Patient.FullName,
+                    serviceName = b.Service.ServiceCatalog.Name,
+                    date = b.BookingDate.ToString("yyyy-MM-dd"),
+                    time = b.StartTime.ToString(@"hh\:mm"),
+                    address = b.ServiceAddress,
+                    totalPrice = b.Service.Price,
+                    status = b.Status
+                })
+                .ToListAsync();
+
+            return Ok(appointments);
+        }
 
 
+        [HttpGet("appointments/{bookingId}")]
+        public async Task<IActionResult> GetAppointmentDetailsForNurse(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .Include(b => b.Patient)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Appointment not found.");
+
+            return Ok(new
+            {
+                bookingId = booking.BookingId,
+                patientName = booking.Patient.FullName,
+                phoneNumber = booking.Patient.PhoneNumber,
+                serviceName = booking.Service.ServiceCatalog.Name,
+                date = booking.BookingDate.ToString("yyyy-MM-dd"),
+                time = booking.StartTime.ToString(@"hh\:mm"),
+                address = booking.ServiceAddress,
+                totalPrice = booking.Service.Price,
+                additionalNotes = booking.AdditionalNotes,
+                status = booking.Status
+            });
+        }
+
+
+
+        [HttpPut("appointments/{bookingId}/complete")]
+        public async Task<IActionResult> CompleteAppointment(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Appointment not found.");
+
+            if (booking.Status != "Accepted" && booking.Status != "Active")
+                return BadRequest("Only accepted or active appointments can be marked as completed.");
+
+            booking.Status = "Completed";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Appointment marked as completed successfully.",
+                status = booking.Status
+            });
+        }
+
+
+
+        [HttpPut("appointments/{bookingId}/cancel")]
+        public async Task<IActionResult> CancelAppointmentByNurse(int bookingId)
+        {
+            var nurseId = GetCurrentUserId();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
+
+            if (booking == null)
+                return NotFound("Appointment not found.");
+
+            if (booking.Status != "Accepted" && booking.Status != "Pending")
+                return BadRequest("Only pending or accepted appointments can be cancelled.");
+
+            booking.Status = "Cancelled";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Appointment cancelled successfully.",
+                status = booking.Status
+            });
+        }
 
 
     }
