@@ -463,8 +463,70 @@ namespace NurseNow.Controllers
         }
 
 
+        [HttpGet("appointments")]
+        public async Task<IActionResult> GetPatientAppointments([FromQuery] string tab = "upcoming")
+        {
+            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+            if (patientId == null)
+                return Unauthorized();
 
+            var query = _context.Bookings
+                .Include(b => b.Nurse)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .Where(b => b.PatientId == patientId)
+                .AsQueryable();
+
+            if (tab.ToLower() == "upcoming")
+            {
+                query = query.Where(b =>
+                    b.Status == "Pending" ||
+                    b.Status == "Accepted" ||
+                    b.Status == "Active");
+            }
+            else if (tab.ToLower() == "past")
+            {
+                query = query.Where(b =>
+                    b.Status == "Cancelled" ||
+                    b.Status == "Rejected" ||
+                    b.Status == "Completed");
+            }
+            else
+            {
+                return BadRequest("Invalid tab value. Use 'upcoming' or 'past'.");
+            }
+
+            var bookings = await query
+                .OrderBy(b => b.BookingDate)
+                .ThenBy(b => b.StartTime)
+                .ToListAsync();
+
+            var nurseIds = bookings.Select(b => b.NurseId).Distinct().ToList();
+
+            var nurseProfiles = await _context.NurseProfiles
+                .Where(n => nurseIds.Contains(n.UserId))
+                .ToDictionaryAsync(n => n.UserId, n => n.ProfileImagePath);
+
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            var appointments = bookings.Select(b => new
+            {
+                bookingId = b.BookingId,
+                nurseName = b.Nurse.FullName,
+                profileImageUrl = nurseProfiles.ContainsKey(b.NurseId) && nurseProfiles[b.NurseId] != null
+                    ? $"{baseUrl}/{nurseProfiles[b.NurseId]}"
+                    : null,
+                serviceName = b.Service.ServiceCatalog.Name,
+                date = b.BookingDate.ToString("yyyy-MM-dd"),
+                time = b.StartTime.ToString(@"hh\:mm"),
+                address = b.ServiceAddress,
+                totalPrice = b.Service.Price,
+                status = b.Status
+            }).ToList();
+
+            return Ok(appointments);
+        }
 
 
 

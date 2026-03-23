@@ -1,83 +1,100 @@
-﻿# Nurse Service Requests Section Documentation
+﻿# Patient Appointments Section Documentation
 
 ## Overview
-This documentation explains the backend work completed for the **Nurse Service Requests section**.
+This documentation explains the backend work completed for the **Patient Appointments section**.
 
-This section allows the nurse to:
-- view all booking requests
-- filter requests by status
-- open full request details
-- accept pending requests
-- decline pending requests
+This section allows the patient to:
+- view all appointments
+- filter appointments into:
+  - upcoming
+  - past
+- open appointment details
+- cancel eligible appointments
 
-Supported statuses:
+---
+
+# 1) Appointment Tabs Logic
+
+The UI contains two main tabs:
+
+## Upcoming
+This tab includes appointments with statuses:
 - `Pending`
 - `Accepted`
+- `Active`
+
+## Past
+This tab includes appointments with statuses:
+- `Cancelled`
 - `Rejected`
+- `Completed`
+
+> The grouping is based on **status**, not only on date.
 
 ---
 
-## Endpoints Summary
-
-| Method | Route | Purpose |
-|---|---|---|
-| GET | `/api/nurse/requests` | Get all nurse requests |
-| GET | `/api/nurse/requests?status=Pending` | Get pending requests only |
-| GET | `/api/nurse/requests?status=Accepted` | Get accepted requests only |
-| GET | `/api/nurse/requests?status=Rejected` | Get rejected requests only |
-| GET | `/api/nurse/requests/{bookingId}` | Get full details of one request |
-| PUT | `/api/nurse/requests/{bookingId}/accept` | Accept a pending request |
-| PUT | `/api/nurse/requests/{bookingId}/decline` | Decline a pending request |
-
----
-
-# 1) Get Nurse Requests
+# 2) Get Patient Appointments API
 
 ## Endpoint
-`GET /api/nurse/requests`
-
-## Optional Query Parameter
-- `status`
-
-Examples:
-```http
-GET /api/nurse/requests
-GET /api/nurse/requests?status=Pending
-GET /api/nurse/requests?status=Accepted
-GET /api/nurse/requests?status=Rejected
-```
+`GET /api/patient/appointments?tab=upcoming`
 
 ## Purpose
-Returns the booking requests assigned to the logged-in nurse.
+Returns the patient's appointments list for either:
+- upcoming
+- past
+
+## Query Parameter
+- `tab`
+
+Allowed values:
+- `upcoming`
+- `past`
+
+### Examples
+```http
+GET /api/patient/appointments?tab=upcoming
+GET /api/patient/appointments?tab=past
+```
+
+---
 
 ## Returned Fields
-Each item includes:
+Each appointment item includes:
 - `bookingId`
-- `patientName`
-- `patientPhone`
+- `nurseName`
+- `profileImageUrl`
 - `serviceName`
 - `date`
 - `time`
-- `location`
-- `durationInMinutes`
+- `address`
 - `totalPrice`
-- `notes`
 - `status`
+
+---
 
 ## Response Example
 ```json
 [
   {
     "bookingId": 5,
-    "patientName": "Ali Mohammed",
-    "patientPhone": "0799999999",
+    "nurseName": "Sarah Hassan",
+    "profileImageUrl": "https://localhost:5001/uploads/profile.jpg",
     "serviceName": "IV Therapy",
-    "date": "2026-11-03",
-    "time": "10:00",
-    "location": "Jabal Amman",
-    "durationInMinutes": 60,
+    "date": "2026-01-12",
+    "time": "14:00",
+    "address": "123 Main St, Abdali, Amman",
     "totalPrice": 50.0,
-    "notes": "Please call before arrival.",
+    "status": "Accepted"
+  },
+  {
+    "bookingId": 6,
+    "nurseName": "Layla Ahmed",
+    "profileImageUrl": null,
+    "serviceName": "Wound Care",
+    "date": "2026-01-13",
+    "time": "10:00",
+    "address": "456 King St, Sweifieh, Amman",
+    "totalPrice": 30.0,
     "status": "Pending"
   }
 ]
@@ -85,128 +102,309 @@ Each item includes:
 
 ---
 
-# 2) Get Request Details
+# 3) Appointment Details API
 
 ## Endpoint
-`GET /api/nurse/requests/{bookingId}`
+`GET /api/patient/appointments/{bookingId}`
 
 ## Purpose
-Returns the full details of one request for the logged-in nurse.
+Returns full details of a specific appointment for the logged-in patient.
 
 ## Returned Fields
 - `bookingId`
-- `patientName`
-- `contact`
-- `serviceType`
+- `nurseName`
+- `profileImageUrl`
+- `phoneNumber`
+- `serviceName`
 - `date`
 - `time`
-- `location`
+- `address`
 - `durationInMinutes`
-- `payment`
+- `totalPrice`
 - `additionalNotes`
 - `status`
+
+---
 
 ## Response Example
 ```json
 {
   "bookingId": 5,
-  "patientName": "Ali Mohammed",
-  "contact": "0799999999",
-  "serviceType": "IV Therapy",
+  "nurseName": "Sarah Hassan",
+  "profileImageUrl": "https://localhost:5001/uploads/profile.jpg",
+  "phoneNumber": "0799999999",
+  "serviceName": "IV Therapy",
   "date": "2026-11-03",
   "time": "10:00",
-  "location": "Jabal Amman",
+  "address": "Jabal Amman",
   "durationInMinutes": 60,
-  "payment": 50.0,
+  "totalPrice": 50.0,
   "additionalNotes": "Please call before arrival.",
-  "status": "Pending"
-}
-```
-
-## Error Example
-```json
-"Request not found."
-```
-
----
-
-# 3) Accept Request
-
-## Endpoint
-`PUT /api/nurse/requests/{bookingId}/accept`
-
-## Purpose
-Changes the request status from `Pending` to `Accepted`.
-
-## Validation
-- the request must belong to the logged-in nurse
-- only `Pending` requests can be accepted
-
-## Response Example
-```json
-{
-  "message": "Request accepted successfully.",
   "status": "Accepted"
 }
 ```
 
 ## Error Example
 ```json
-"Only pending requests can be accepted."
+"Appointment not found."
 ```
 
 ---
 
-# 4) Decline Request
+# 4) Cancel Appointment API
 
 ## Endpoint
-`PUT /api/nurse/requests/{bookingId}/decline`
+`PUT /api/patient/appointments/{bookingId}/cancel`
 
 ## Purpose
-Changes the request status from `Pending` to `Rejected`.
+Allows the patient to cancel an appointment.
 
-## Validation
-- the request must belong to the logged-in nurse
-- only `Pending` requests can be declined
+## Cancellation Rules
+The patient can cancel only if the appointment status is:
+- `Pending`
+- `Accepted`
+
+The patient cannot cancel if the status is:
+- `Rejected`
+- `Cancelled`
+- `Completed`
+- `Active`
+
+---
 
 ## Response Example
 ```json
 {
-  "message": "Request declined successfully.",
-  "status": "Rejected"
+  "message": "Appointment cancelled successfully.",
+  "status": "Cancelled"
 }
 ```
 
 ## Error Example
 ```json
-"Only pending requests can be declined."
+"Only pending or accepted appointments can be cancelled."
 ```
 
 ---
 
-# Booking Status Flow
+# 5) Booking Statuses Used
 
-The current request flow supports:
+The patient appointments section currently uses these statuses:
 
 - `Pending`
 - `Accepted`
+- `Active`
+- `Cancelled`
 - `Rejected`
-
-### Initial status
-When the patient creates a booking request:
-- the booking is created with status:
-`Pending`
-
-### Nurse actions
-- Accept → `Accepted`
-- Decline → `Rejected`
+- `Completed`
 
 ---
 
-# Backend Tables Used
+# 6) Data Sources Used
 
-These APIs currently depend on:
+The endpoints depend on:
+- `Bookings`
+- `AspNetUsers`
+- `NurseProfiles`
+- `Services`
+- `ServiceCatalog`
 
+---
+
+# 7) Backend Logic Details
+
+## A) List Appointments
+The list endpoint:
+- gets all bookings for the logged-in patient
+- groups them by tab using status
+- joins nurse and service data
+- returns summary cards for the UI
+
+## B) Appointment Details
+The details endpoint:
+- checks that the appointment belongs to the logged-in patient
+- loads nurse and service info
+- loads nurse phone number from `NurseProfiles`
+- returns a full appointment details object
+
+## C) Cancel Appointment
+The cancel endpoint:
+- checks that the appointment belongs to the logged-in patient
+- validates the current status
+- changes status to `Cancelled`
+- saves changes
+
+---
+
+# 8) Flutter Usage
+
+## Upcoming tab
+```http
+GET /api/patient/appointments?tab=upcoming
+```
+
+## Past tab
+```http
+GET /api/patient/appointments?tab=past
+```
+
+## Appointment card click
+```http
+GET /api/patient/appointments/{bookingId}
+```
+
+## Cancel button
+```http
+PUT /api/patient/appointments/{bookingId}/cancel
+```
+
+---
+
+# 9) Important Notes
+
+## Profile Image URL
+The profile image is returned as a full URL if available.
+
+## Phone Number
+The nurse phone number is returned in the details endpoint only.
+
+## Cancelled appointments
+Once an appointment is cancelled:
+- it will no longer appear in `upcoming`
+- it will appear in `past`
+
+---
+
+# 10) Status
+
+✔ Upcoming appointments endpoint implemented  
+✔ Past appointments endpoint implemented  
+✔ Appointment details endpoint implemented  
+✔ Cancel appointment endpoint implemented  
+✔ Nurse phone number included in details  
+
+⏳ Pending:
+- appointment notifications
+- automatic active/completed status transitions
+- payment integration
+
+*************************************************************************************************
+# Nurse Appointment Details Section Documentation
+
+## Overview
+This documentation explains the backend work completed for the **Nurse Appointment Details section**.
+
+This section allows the nurse to:
+- open a specific appointment
+- view full appointment details
+- see the patient phone number for contact
+- mark an appointment as completed
+- cancel an appointment
+
+---
+
+# 1) Appointment Details API
+
+## Endpoint
+`GET /api/nurse/appointments/{bookingId}`
+
+## Purpose
+Returns full details of one appointment for the logged-in nurse.
+
+## Returned Fields
+- `bookingId`
+- `patientName`
+- `phoneNumber`
+- `serviceName`
+- `date`
+- `time`
+- `address`
+- `totalPrice`
+- `additionalNotes`
+- `status`
+
+## Response Example
+```json
+{
+  "bookingId": 12,
+  "patientName": "Ali Mohammed",
+  "phoneNumber": "0799999999",
+  "serviceName": "IV Therapy",
+  "date": "2026-03-11",
+  "time": "15:00",
+  "address": "Jabal Amman",
+  "totalPrice": 50.0,
+  "additionalNotes": "Please call before arrival.",
+  "status": "Accepted"
+}
+```
+
+## Error Example
+```json
+"Appointment not found."
+```
+
+---
+
+# 2) Mark Appointment as Completed
+
+## Endpoint
+`PUT /api/nurse/appointments/{bookingId}/complete`
+
+## Purpose
+Allows the nurse to mark an appointment as completed.
+
+## Allowed Statuses
+This action is allowed only if the current status is:
+- `Accepted`
+- `Active`
+
+## Response Example
+```json
+{
+  "message": "Appointment marked as completed successfully.",
+  "status": "Completed"
+}
+```
+
+## Error Example
+```json
+"Only accepted or active appointments can be marked as completed."
+```
+
+---
+
+# 3) Cancel Appointment by Nurse
+
+## Endpoint
+`PUT /api/nurse/appointments/{bookingId}/cancel`
+
+## Purpose
+Allows the nurse to cancel an appointment.
+
+## Allowed Statuses
+This action is allowed only if the current status is:
+- `Pending`
+- `Accepted`
+
+## Response Example
+```json
+{
+  "message": "Appointment cancelled successfully.",
+  "status": "Cancelled"
+}
+```
+
+## Error Example
+```json
+"Only pending or accepted appointments can be cancelled."
+```
+
+---
+
+# 4) Data Sources Used
+
+These APIs depend on:
 - `Bookings`
 - `AspNetUsers`
 - `Services`
@@ -214,88 +412,101 @@ These APIs currently depend on:
 
 ---
 
-# Required Booking Fields
+# 5) Backend Logic
 
-The `Booking` model used by this section includes:
+## Appointment Details
+The API:
+- checks that the appointment belongs to the logged-in nurse
+- loads patient data
+- loads service data
+- returns patient phone number for contact
 
-```csharp
-public class Booking
-{
-    public int BookingId { get; set; }
-    public string PatientId { get; set; }
-    public string NurseId { get; set; }
-    public int ServiceId { get; set; }
-    public DateTime BookingDate { get; set; }
-    public TimeSpan StartTime { get; set; }
-    public TimeSpan EndTime { get; set; }
-    public string ServiceAddress { get; set; }
-    public string? AdditionalNotes { get; set; }
-    public string Status { get; set; } = "Pending";
+## Complete Appointment
+The API:
+- checks ownership
+- validates current status
+- updates status to `Completed`
 
-    public ApplicationUser Patient { get; set; }
-    public ApplicationUser Nurse { get; set; }
-    public Service Service { get; set; }
-}
-```
+## Cancel Appointment
+The API:
+- checks ownership
+- validates current status
+- updates status to `Cancelled`
 
 ---
 
-# Flutter Usage
+# 6) Booking Statuses Used
 
-## Tabs
-The nurse UI can use these tabs:
+These actions depend on the following statuses:
 
-- All
-- Pending
-- Accepted
-- Rejected
+- `Pending`
+- `Accepted`
+- `Active`
+- `Cancelled`
+- `Completed`
 
-Each tab calls:
-- `GET /api/nurse/requests`
-- optionally with `status`
+### UI mapping suggestion
+If you want to show:
+- `Confirmed` in the UI
 
-## Full Details
-When the nurse clicks **View Full Details**:
-- Flutter calls:
-`GET /api/nurse/requests/{bookingId}`
+You can map:
+- `Accepted` → `Confirmed`
 
-## Accept / Decline
-When the nurse clicks:
-- **Accept Request** → call accept endpoint
-- **Decline** → call decline endpoint
+in Flutter.
 
 ---
 
-# Notes
+# 7) Flutter Usage
 
-## Rejected
-Rejected requests are supported and can be loaded using:
-
+## Open appointment details
 ```http
-GET /api/nurse/requests?status=Rejected
+GET /api/nurse/appointments/{bookingId}
 ```
 
-## Payment
-The request details currently return:
-- `payment = booking.Service.Price`
+## Mark as completed
+```http
+PUT /api/nurse/appointments/{bookingId}/complete
+```
 
-This represents the service price for the request.
-
-## Notifications
-Notifications to the patient after accept/decline are not implemented yet.
+## Cancel appointment
+```http
+PUT /api/nurse/appointments/{bookingId}/cancel
+```
 
 ---
 
-# Status
+# 8) UI Button Logic
 
-✔ Requests list implemented  
-✔ Status filter implemented  
-✔ Request details implemented  
-✔ Accept request implemented  
-✔ Decline request implemented  
-✔ Rejected tab supported  
+## If status = Accepted
+Show:
+- Mark as Completed
+- Cancel Appointment
+- Contact Patient
+
+## If status = Active
+Show:
+- Mark as Completed
+- Contact Patient
+
+## If status = Completed
+Show:
+- Contact Patient only
+
+## If status = Cancelled
+Show:
+- status only
+
+---
+
+# 9) Status
+
+✔ Nurse appointment details endpoint implemented  
+✔ Patient phone number included  
+✔ Complete appointment endpoint implemented  
+✔ Cancel appointment endpoint implemented  
 
 ⏳ Pending:
-- patient notifications after status change
-- upcoming appointments integration
-- payment workflow integration
+- notifications after completion/cancellation
+- payment flow integration
+- automatic status transitions
+

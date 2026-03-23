@@ -635,7 +635,7 @@ namespace NurseNow.Controllers
             var query = _context.Bookings
                 .Include(b => b.Patient)
                 .Include(b => b.Service)
-                    .ThenInclude(s => s.ServiceCatalog)
+                .ThenInclude(s => s.ServiceCatalog)
                 .Where(b => b.NurseId == nurseId)
                 .AsQueryable();
 

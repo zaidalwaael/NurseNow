@@ -106,21 +106,21 @@ namespace NurseNow.Controllers
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-           /* var resetLink = $"https://yourdomain.com/reset-password?email={user.Email}&token={encodedToken}";
+            /* var resetLink = $"https://yourdomain.com/reset-password?email={user.Email}&token={encodedToken}";
 
-            var emailBody = $@"
-        <h2>Password Reset</h2>
-        <p>Click the link below to reset your password:</p>
-        <a href='{resetLink}'>Reset Password</a>
-    ";
-           
-            await _emailService.SendEmailAsync(user.Email, "Reset Password", emailBody);
-           */
+                  var emailBody = $@"
+                  <h2>Password Reset</h2>
+                  <p>Click the link below to reset your password:</p>
+                  <a href='{resetLink}'>Reset Password</a> ";
+                                                  
+             await _emailService.SendEmailAsync(user.Email, "Reset Password", emailBody);
+            */
+
             return Ok(new
-            { 
-            messsage="reset token generated successfully",
-            email=user.Email,
-            token=encodedToken
+            {
+                messsage = "reset token generated successfully",
+                email = user.Email,
+                token = encodedToken
             });
         }
 
