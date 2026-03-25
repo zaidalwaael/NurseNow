@@ -1,512 +1,321 @@
-﻿# Patient Appointments Section Documentation
+﻿# Payment Flow Documentation
 
 ## Overview
-This documentation explains the backend work completed for the **Patient Appointments section**.
+This document explains the backend payment flow implemented for the project using **Stripe Payment Intents**.
 
-This section allows the patient to:
-- view all appointments
-- filter appointments into:
-  - upcoming
-  - past
-- open appointment details
-- cancel eligible appointments
-
----
-
-# 1) Appointment Tabs Logic
-
-The UI contains two main tabs:
-
-## Upcoming
-This tab includes appointments with statuses:
-- `Pending`
-- `Accepted`
-- `Active`
-
-## Past
-This tab includes appointments with statuses:
-- `Cancelled`
-- `Rejected`
-- `Completed`
-
-> The grouping is based on **status**, not only on date.
+The chosen payment approach is:
+- custom payment UI in Flutter
+- card/payment method selection in the app
+- backend creates Stripe Payment Intent
+- frontend confirms the payment
+- backend finalizes payment status after success
 
 ---
 
-# 2) Get Patient Appointments API
+# 1) Payment Flow Summary
 
-## Endpoint
-`GET /api/patient/appointments?tab=upcoming`
+The payment flow works like this:
 
-## Purpose
-Returns the patient's appointments list for either:
-- upcoming
-- past
-
-## Query Parameter
-- `tab`
-
-Allowed values:
-- `upcoming`
-- `past`
-
-### Examples
-```http
-GET /api/patient/appointments?tab=upcoming
-GET /api/patient/appointments?tab=past
-```
+1. Patient opens the payment page by clicking **Pay Now**
+2. Backend returns payment summary
+3. Patient selects payment method and confirms payment
+4. Backend creates Stripe Payment Intent
+5. Flutter confirms payment using Stripe SDK
+6. If payment succeeds:
+   - backend confirms payment
+   - payment status becomes `Paid`
+   - booking status becomes `Active`
+   - Flutter opens payment success screen
+7. If payment fails:
+   - Flutter opens payment failed screen
+   - patient can retry payment
 
 ---
 
-## Returned Fields
-Each appointment item includes:
-- `bookingId`
-- `nurseName`
-- `profileImageUrl`
-- `serviceName`
-- `date`
-- `time`
-- `address`
-- `totalPrice`
-- `status`
+# 2) Stripe Setup
 
----
+## appsettings.json
+The project stores Stripe secret key in:
 
-## Response Example
 ```json
-[
-  {
-    "bookingId": 5,
-    "nurseName": "Sarah Hassan",
-    "profileImageUrl": "https://localhost:5001/uploads/profile.jpg",
-    "serviceName": "IV Therapy",
-    "date": "2026-01-12",
-    "time": "14:00",
-    "address": "123 Main St, Abdali, Amman",
-    "totalPrice": 50.0,
-    "status": "Accepted"
-  },
-  {
-    "bookingId": 6,
-    "nurseName": "Layla Ahmed",
-    "profileImageUrl": null,
-    "serviceName": "Wound Care",
-    "date": "2026-01-13",
-    "time": "10:00",
-    "address": "456 King St, Sweifieh, Amman",
-    "totalPrice": 30.0,
-    "status": "Pending"
-  }
-]
+"Stripe": {
+  "SecretKey": "sk_test_xxxxxxxxxxxxxxxxxxxxx"
+}
 ```
 
 ---
 
-# 3) Appointment Details API
+## Program.cs
+Stripe API key is initialized using:
 
-## Endpoint
-`GET /api/patient/appointments/{bookingId}`
-
-## Purpose
-Returns full details of a specific appointment for the logged-in patient.
-
-## Returned Fields
-- `bookingId`
-- `nurseName`
-- `profileImageUrl`
-- `phoneNumber`
-- `serviceName`
-- `date`
-- `time`
-- `address`
-- `durationInMinutes`
-- `totalPrice`
-- `additionalNotes`
-- `status`
+```csharp
+StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
+```
 
 ---
+
+## NuGet Package
+Required package:
+
+```bash
+dotnet add package Stripe.net
+```
+
+---
+
+# 3) Payment Model
+
+## Payment.cs
+```csharp
+namespace NurseNow.Models
+{
+    public class Payment
+    {
+        public int PaymentId { get; set; }
+
+        public int BookingId { get; set; }
+
+        public decimal Amount { get; set; }
+
+        public string Status { get; set; } = "Pending";
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public Booking Booking { get; set; }
+    }
+}
+```
+
+### Payment Statuses
+- `Pending`
+- `Paid`
+- `Failed` (optional for future use)
+
+---
+
+# 4) Booking Relationship
+
+## Booking.cs
+The booking model includes:
+
+```csharp
+public Payment? Payment { get; set; }
+```
+
+---
+
+## ApplicationDbContext
+The payment table is registered using:
+
+```csharp
+public DbSet<Payment> Payments { get; set; }
+```
+
+and the one-to-one relationship is configured as:
+
+```csharp
+builder.Entity<Payment>()
+    .HasOne(p => p.Booking)
+    .WithOne(b => b.Payment)
+    .HasForeignKey<Payment>(p => p.BookingId)
+    .OnDelete(DeleteBehavior.Cascade);
+```
+
+---
+
+# 5) Migration
+
+After adding the payment model and relationship:
+
+```powershell
+Add-Migration AddPaymentTable
+Update-Database
+```
+
+---
+
+# 6) Payment Summary API
+
+## Endpoint
+`GET /api/patient/payments/summary/{bookingId}`
+
+## Purpose
+Returns the payment page summary before the patient confirms payment.
 
 ## Response Example
 ```json
 {
-  "bookingId": 5,
   "nurseName": "Sarah Hassan",
-  "profileImageUrl": "https://localhost:5001/uploads/profile.jpg",
-  "phoneNumber": "0799999999",
-  "serviceName": "IV Therapy",
-  "date": "2026-11-03",
-  "time": "10:00",
-  "address": "Jabal Amman",
-  "durationInMinutes": 60,
-  "totalPrice": 50.0,
-  "additionalNotes": "Please call before arrival.",
-  "status": "Accepted"
-}
-```
-
-## Error Example
-```json
-"Appointment not found."
-```
-
----
-
-# 4) Cancel Appointment API
-
-## Endpoint
-`PUT /api/patient/appointments/{bookingId}/cancel`
-
-## Purpose
-Allows the patient to cancel an appointment.
-
-## Cancellation Rules
-The patient can cancel only if the appointment status is:
-- `Pending`
-- `Accepted`
-
-The patient cannot cancel if the status is:
-- `Rejected`
-- `Cancelled`
-- `Completed`
-- `Active`
-
----
-
-## Response Example
-```json
-{
-  "message": "Appointment cancelled successfully.",
-  "status": "Cancelled"
-}
-```
-
-## Error Example
-```json
-"Only pending or accepted appointments can be cancelled."
-```
-
----
-
-# 5) Booking Statuses Used
-
-The patient appointments section currently uses these statuses:
-
-- `Pending`
-- `Accepted`
-- `Active`
-- `Cancelled`
-- `Rejected`
-- `Completed`
-
----
-
-# 6) Data Sources Used
-
-The endpoints depend on:
-- `Bookings`
-- `AspNetUsers`
-- `NurseProfiles`
-- `Services`
-- `ServiceCatalog`
-
----
-
-# 7) Backend Logic Details
-
-## A) List Appointments
-The list endpoint:
-- gets all bookings for the logged-in patient
-- groups them by tab using status
-- joins nurse and service data
-- returns summary cards for the UI
-
-## B) Appointment Details
-The details endpoint:
-- checks that the appointment belongs to the logged-in patient
-- loads nurse and service info
-- loads nurse phone number from `NurseProfiles`
-- returns a full appointment details object
-
-## C) Cancel Appointment
-The cancel endpoint:
-- checks that the appointment belongs to the logged-in patient
-- validates the current status
-- changes status to `Cancelled`
-- saves changes
-
----
-
-# 8) Flutter Usage
-
-## Upcoming tab
-```http
-GET /api/patient/appointments?tab=upcoming
-```
-
-## Past tab
-```http
-GET /api/patient/appointments?tab=past
-```
-
-## Appointment card click
-```http
-GET /api/patient/appointments/{bookingId}
-```
-
-## Cancel button
-```http
-PUT /api/patient/appointments/{bookingId}/cancel
-```
-
----
-
-# 9) Important Notes
-
-## Profile Image URL
-The profile image is returned as a full URL if available.
-
-## Phone Number
-The nurse phone number is returned in the details endpoint only.
-
-## Cancelled appointments
-Once an appointment is cancelled:
-- it will no longer appear in `upcoming`
-- it will appear in `past`
-
----
-
-# 10) Status
-
-✔ Upcoming appointments endpoint implemented  
-✔ Past appointments endpoint implemented  
-✔ Appointment details endpoint implemented  
-✔ Cancel appointment endpoint implemented  
-✔ Nurse phone number included in details  
-
-⏳ Pending:
-- appointment notifications
-- automatic active/completed status transitions
-- payment integration
-
-*************************************************************************************************
-# Nurse Appointment Details Section Documentation
-
-## Overview
-This documentation explains the backend work completed for the **Nurse Appointment Details section**.
-
-This section allows the nurse to:
-- open a specific appointment
-- view full appointment details
-- see the patient phone number for contact
-- mark an appointment as completed
-- cancel an appointment
-
----
-
-# 1) Appointment Details API
-
-## Endpoint
-`GET /api/nurse/appointments/{bookingId}`
-
-## Purpose
-Returns full details of one appointment for the logged-in nurse.
-
-## Returned Fields
-- `bookingId`
-- `patientName`
-- `phoneNumber`
-- `serviceName`
-- `date`
-- `time`
-- `address`
-- `totalPrice`
-- `additionalNotes`
-- `status`
-
-## Response Example
-```json
-{
-  "bookingId": 12,
-  "patientName": "Ali Mohammed",
-  "phoneNumber": "0799999999",
   "serviceName": "IV Therapy",
   "date": "2026-03-11",
-  "time": "15:00",
-  "address": "Jabal Amman",
-  "totalPrice": 50.0,
-  "additionalNotes": "Please call before arrival.",
-  "status": "Accepted"
+  "time": "10:00",
+  "amount": 50.0
 }
-```
-
-## Error Example
-```json
-"Appointment not found."
 ```
 
 ---
 
-# 2) Mark Appointment as Completed
+# 7) Create Payment Intent API
 
 ## Endpoint
-`PUT /api/nurse/appointments/{bookingId}/complete`
+`POST /api/patient/payments/create-intent/{bookingId}`
 
 ## Purpose
-Allows the nurse to mark an appointment as completed.
+Creates a Stripe Payment Intent and returns `clientSecret` to Flutter.
 
-## Allowed Statuses
-This action is allowed only if the current status is:
-- `Accepted`
-- `Active`
+## Validation Rules
+- booking must belong to logged-in patient
+- booking must exist
+- booking status must be `Accepted`
+- booking must not already have a paid payment
 
 ## Response Example
 ```json
 {
-  "message": "Appointment marked as completed successfully.",
-  "status": "Completed"
+  "clientSecret": "pi_xxx_secret_xxx"
 }
-```
-
-## Error Example
-```json
-"Only accepted or active appointments can be marked as completed."
 ```
 
 ---
 
-# 3) Cancel Appointment by Nurse
+# 8) Confirm Payment API
 
 ## Endpoint
-`PUT /api/nurse/appointments/{bookingId}/cancel`
+`POST /api/patient/payments/confirm/{bookingId}`
 
 ## Purpose
-Allows the nurse to cancel an appointment.
+Confirms payment internally in the project after Flutter reports successful Stripe payment.
 
-## Allowed Statuses
-This action is allowed only if the current status is:
-- `Pending`
-- `Accepted`
+## Backend Logic
+The endpoint:
+- checks booking ownership
+- checks existing payment
+- creates or updates `Payment`
+- sets `Payment.Status = Paid`
+- updates `Booking.Status = Active`
 
 ## Response Example
 ```json
 {
-  "message": "Appointment cancelled successfully.",
-  "status": "Cancelled"
+  "message": "Payment confirmed successfully.",
+  "bookingId": 15,
+  "amountPaid": 50.0,
+  "paymentStatus": "Paid",
+  "bookingStatus": "Active"
 }
 ```
 
-## Error Example
+---
+
+# 9) Get Payment API
+
+## Endpoint
+`GET /api/patient/payments/{bookingId}`
+
+## Purpose
+Returns stored payment information for a booking.
+
+## Response Example
 ```json
-"Only pending or accepted appointments can be cancelled."
+{
+  "paymentId": 3,
+  "bookingId": 15,
+  "amount": 50.0,
+  "status": "Paid",
+  "createdAt": "2026-03-26T10:30:00Z"
+}
 ```
 
 ---
 
-# 4) Data Sources Used
+# 10) Success and Failed Screens
 
-These APIs depend on:
-- `Bookings`
-- `AspNetUsers`
-- `Services`
-- `ServiceCatalog`
+## Payment Success Screen
+This screen does not need a separate backend endpoint.
 
----
+It uses the response from:
 
-# 5) Backend Logic
+`POST /api/patient/payments/confirm/{bookingId}`
 
-## Appointment Details
-The API:
-- checks that the appointment belongs to the logged-in nurse
-- loads patient data
-- loads service data
-- returns patient phone number for contact
+Displayed data:
+- amount paid
+- booking id
 
-## Complete Appointment
-The API:
-- checks ownership
-- validates current status
-- updates status to `Completed`
+## Payment Failed Screen
+This screen also does not require a separate backend endpoint for the current version.
 
-## Cancel Appointment
-The API:
-- checks ownership
-- validates current status
-- updates status to `Cancelled`
+If Stripe payment fails:
+- Flutter opens the failed screen directly
+- the user can retry payment
+
+### Retry Payment
+Retry simply repeats:
+- create payment intent
+- confirm payment in Flutter
 
 ---
 
-# 6) Booking Statuses Used
+# 11) Flutter Integration Flow
 
-These actions depend on the following statuses:
+## Step 1
+Call:
 
-- `Pending`
-- `Accepted`
+```http
+GET /api/patient/payments/summary/{bookingId}
+```
+
+## Step 2
+Call:
+
+```http
+POST /api/patient/payments/create-intent/{bookingId}
+```
+
+## Step 3
+Use Stripe SDK in Flutter to confirm payment.
+
+## Step 4
+If success:
+call
+
+```http
+POST /api/patient/payments/confirm/{bookingId}
+```
+
+and open success screen.
+
+## Step 5
+If failed:
+open failed screen and allow retry.
+
+---
+
+# 12) Important Notes
+
+## Payment Availability
+Payment is allowed only when:
+- booking status = `Accepted`
+
+## After successful payment
+The booking status is changed to:
 - `Active`
-- `Cancelled`
-- `Completed`
 
-### UI mapping suggestion
-If you want to show:
-- `Confirmed` in the UI
-
-You can map:
-- `Accepted` → `Confirmed`
-
-in Flutter.
+## Test Mode
+This payment flow uses Stripe test mode, not live mode.
 
 ---
 
-# 7) Flutter Usage
+# 13) Status
 
-## Open appointment details
-```http
-GET /api/nurse/appointments/{bookingId}
-```
-
-## Mark as completed
-```http
-PUT /api/nurse/appointments/{bookingId}/complete
-```
-
-## Cancel appointment
-```http
-PUT /api/nurse/appointments/{bookingId}/cancel
-```
-
----
-
-# 8) UI Button Logic
-
-## If status = Accepted
-Show:
-- Mark as Completed
-- Cancel Appointment
-- Contact Patient
-
-## If status = Active
-Show:
-- Mark as Completed
-- Contact Patient
-
-## If status = Completed
-Show:
-- Contact Patient only
-
-## If status = Cancelled
-Show:
-- status only
-
----
-
-# 9) Status
-
-✔ Nurse appointment details endpoint implemented  
-✔ Patient phone number included  
-✔ Complete appointment endpoint implemented  
-✔ Cancel appointment endpoint implemented  
+✔ Stripe setup documented  
+✔ Payment model added  
+✔ Payment summary API added  
+✔ Create payment intent API added  
+✔ Confirm payment API added  
+✔ Get payment API added  
+✔ Success / failed flow defined  
 
 ⏳ Pending:
-- notifications after completion/cancellation
-- payment flow integration
-- automatic status transitions
-
+- real webhook verification
+- optional failed payment persistence
+- Apple Pay integration details

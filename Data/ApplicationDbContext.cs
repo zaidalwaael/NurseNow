@@ -16,6 +16,7 @@ namespace NurseNow.Data
         public DbSet<AvailabilityOverride> AvailabilityOverrides { get; set; }
         public DbSet<Booking> Bookings { get; set; }
 
+    
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
@@ -85,6 +86,11 @@ namespace NurseNow.Data
                 .HasForeignKey(b => b.ServiceId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<Payment>()
+                  .HasOne(p => p.Booking)
+                  .WithOne(b => b.Payment)
+                  .HasForeignKey<Payment>(p => p.BookingId)
+                  .OnDelete(DeleteBehavior.Cascade);
 
         }
 

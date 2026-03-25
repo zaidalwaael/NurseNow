@@ -4,6 +4,15 @@ using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
 using NurseNow.DTOs;
 using NurseNow.Models;
+using Stripe;
+using Stripe.Checkout;
+using NurseNow.Models;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+
+
+
 
 namespace NurseNow.Controllers
 {
@@ -598,6 +607,166 @@ namespace NurseNow.Controllers
                 status = booking.Status
             });
         }
+
+
+
+        [HttpPost("payments/create-intent/{bookingId}")]
+        public async Task<IActionResult> CreatePaymentIntent(int bookingId)
+        {
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
+
+            var booking = await _context.Bookings
+                .Include(b => b.Service)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Booking not found.");
+
+            if (booking.Status != "Accepted")
+                return BadRequest("Payment is allowed only after the booking is accepted.");
+
+            var existingPaidPayment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == bookingId && p.Status == "Paid");
+
+            if (existingPaidPayment != null)
+                return BadRequest("This booking has already been paid.");
+
+            var options = new PaymentIntentCreateOptions
+            {
+                Amount = (long)(booking.Service.Price * 100),
+                Currency = "usd",
+                Metadata = new Dictionary<string, string>
+              {
+                  { "bookingId", bookingId.ToString() },
+                  { "patientId", patientId }
+              }
+            };
+
+            var service = new PaymentIntentService();
+            var paymentIntent = await service.CreateAsync(options);
+
+            return Ok(new
+            {
+                clientSecret = paymentIntent.ClientSecret
+            });
+        }
+
+        [HttpPost("payments/confirm/{bookingId}")]
+        public async Task<IActionResult> ConfirmPayment(int bookingId)
+        {
+            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
+
+            var booking = await _context.Bookings
+                .Include(b => b.Service)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Booking not found.");
+
+            var existingPayment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == bookingId);
+
+            if (existingPayment != null && existingPayment.Status == "Paid")
+                return BadRequest("Payment already confirmed.");
+
+            if (existingPayment == null)
+            {
+                var payment = new Payment
+                {
+                    BookingId = bookingId,
+                    Amount = booking.Service.Price,
+                    Status = "Paid"
+                };
+
+                _context.Payments.Add(payment);
+            }
+            else
+            {
+                existingPayment.Status = "Paid";
+                existingPayment.Amount = booking.Service.Price;
+            }
+
+            booking.Status = "Active";
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Payment confirmed successfully.",
+                bookingId = booking.BookingId,
+                amountPaid = booking.Service.Price,
+                paymentStatus = "Paid",
+                bookingStatus = booking.Status
+            });
+        }
+
+
+
+        [HttpGet("payments/{bookingId}")]
+        public async Task<IActionResult> GetPayment(int bookingId)
+        {
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
+
+            var booking = await _context.Bookings
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Booking not found.");
+
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == bookingId);
+
+            if (payment == null)
+                return NotFound("Payment not found.");
+
+            return Ok(new
+            {
+                paymentId = payment.PaymentId,
+                bookingId = payment.BookingId,
+                amount = payment.Amount,
+                status = payment.Status,
+                createdAt = payment.CreatedAt
+            });
+        }
+
+
+
+        [HttpGet("payments/summary/{bookingId}")]
+        public async Task<IActionResult> GetPaymentSummary(int bookingId)
+        {
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            var booking = await _context.Bookings
+                .Include(b => b.Nurse)
+                .Include(b => b.Service)
+                    .ThenInclude(s => s.ServiceCatalog)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId);
+
+            if (booking == null)
+                return NotFound("Booking not found.");
+
+            return Ok(new
+            {
+                nurseName = booking.Nurse.FullName,
+                serviceName = booking.Service.ServiceCatalog.Name,
+                date = booking.BookingDate.ToString("yyyy-MM-dd"),
+                time = booking.StartTime.ToString(@"hh\:mm"),
+                amount = booking.Service.Price
+            });
+        }
+
+
+
+
 
 
     }

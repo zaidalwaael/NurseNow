@@ -122,6 +122,11 @@ using (var scope = app.Services.CreateScope())
     await ServiceCatalogSeeder.SeedServiceCatalogAsync(context);
 }
 
+
+
+Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
+
+
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
