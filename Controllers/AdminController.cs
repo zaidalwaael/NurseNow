@@ -18,6 +18,7 @@ namespace NurseNow.Controllers
         {
             _context = context;
         }
+
         [HttpGet("nurse-details/{userId}")]
         public async Task<IActionResult> GetNurseDetails(string userId)
         {
@@ -45,21 +46,21 @@ namespace NurseNow.Controllers
                 nurseProfile.VerificationStatus,
 
                 ProfileImageUrl = nurseProfile.ProfileImagePath != null
-                   ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
-                   : null,
+                    ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
+                    : null,
 
                 CertificateUrl = nurseProfile.CertificatePath != null
-                   ? $"{baseUrl}/{nurseProfile.CertificatePath}"
-                   : null,
+                    ? $"{baseUrl}/{nurseProfile.CertificatePath}"
+                    : null,
 
                 NationalIdImageUrl = nurseProfile.NationalIdImagePath != null
-                   ? $"{baseUrl}/{nurseProfile.NationalIdImagePath}"
-                   : null
+                    ? $"{baseUrl}/{nurseProfile.NationalIdImagePath}"
+                    : null
             });
         }
-        // 🔥 Approve or Reject Nurse
+
         [HttpPut("verify-nurse/{userId}")]
-        public async Task<IActionResult> UpdateNurseStatus(string userId, UpdateNurseStatusDto model)
+        public async Task<IActionResult> UpdateNurseStatus(string userId, [FromBody] UpdateNurseStatusDto model)
         {
             var nurseProfile = await _context.NurseProfiles
                 .Include(n => n.User)
@@ -68,10 +69,11 @@ namespace NurseNow.Controllers
             if (nurseProfile == null)
                 return NotFound("Nurse profile not found");
 
+            model.Status = model.Status?.Trim();
+
             if (model.Status != "Approved" && model.Status != "Rejected")
                 return BadRequest("Invalid status");
 
-            // 🔥 Validation before approval
             if (model.Status == "Approved")
             {
                 if (string.IsNullOrEmpty(nurseProfile.Specialization) ||
@@ -90,7 +92,6 @@ namespace NurseNow.Controllers
 
             nurseProfile.VerificationStatus = model.Status;
 
-            // 🔔 Create Notification
             var notificationMessage = model.Status == "Approved"
                 ? "Your account has been approved."
                 : "Your account has been rejected.";
@@ -98,18 +99,22 @@ namespace NurseNow.Controllers
             _context.Notifications.Add(new Notification
             {
                 UserId = nurseProfile.UserId,
+                Title = model.Status == "Approved" ? "Account Approved" : "Account Rejected",
                 Message = notificationMessage,
-                Timestamp = DateTime.UtcNow
+                Type = "Account",
+                CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
             return Ok($"Nurse status updated to {model.Status}");
         }
+
         [HttpGet("pending-nurses")]
         public async Task<IActionResult> GetPendingNurses()
         {
             var pendingNurses = await _context.NurseProfiles
+                .Include(n => n.User)
                 .Where(n => n.VerificationStatus == "Pending")
                 .Select(n => new
                 {

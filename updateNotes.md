@@ -1,321 +1,491 @@
-﻿# Payment Flow Documentation
+﻿# Notifications Section Documentation
 
 ## Overview
-This document explains the backend payment flow implemented for the project using **Stripe Payment Intents**.
+This document explains the backend notification system implemented in the project.
 
-The chosen payment approach is:
-- custom payment UI in Flutter
-- card/payment method selection in the app
-- backend creates Stripe Payment Intent
-- frontend confirms the payment
-- backend finalizes payment status after success
+The notification system currently supports:
+- nurse account approval / rejection notifications
+- new service request notification for nurse
+- booking accepted notification for patient
+- booking rejected notification for patient
+- payment successful notification for patient
+- payment received notification for nurse
+- appointment cancelled notification
+- appointment completed notification
 
----
-
-# 1) Payment Flow Summary
-
-The payment flow works like this:
-
-1. Patient opens the payment page by clicking **Pay Now**
-2. Backend returns payment summary
-3. Patient selects payment method and confirms payment
-4. Backend creates Stripe Payment Intent
-5. Flutter confirms payment using Stripe SDK
-6. If payment succeeds:
-   - backend confirms payment
-   - payment status becomes `Paid`
-   - booking status becomes `Active`
-   - Flutter opens payment success screen
-7. If payment fails:
-   - Flutter opens payment failed screen
-   - patient can retry payment
+It also supports:
+- getting all notifications
+- marking one notification as read
+- marking all notifications as read
+- returning target screen information for frontend navigation
 
 ---
 
-# 2) Stripe Setup
+# 1) Notification Model
 
-## appsettings.json
-The project stores Stripe secret key in:
+## File
+`Models/Notification.cs`
 
-```json
-"Stripe": {
-  "SecretKey": "sk_test_xxxxxxxxxxxxxxxxxxxxx"
-}
-```
-
----
-
-## Program.cs
-Stripe API key is initialized using:
-
-```csharp
-StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
-```
-
----
-
-## NuGet Package
-Required package:
-
-```bash
-dotnet add package Stripe.net
-```
-
----
-
-# 3) Payment Model
-
-## Payment.cs
+## Structure
 ```csharp
 namespace NurseNow.Models
 {
-    public class Payment
+    public class Notification
     {
-        public int PaymentId { get; set; }
+        public int NotificationId { get; set; }
 
-        public int BookingId { get; set; }
+        public string UserId { get; set; }
 
-        public decimal Amount { get; set; }
+        public string Title { get; set; }
 
-        public string Status { get; set; } = "Pending";
+        public string Message { get; set; }
+
+        public string Type { get; set; }
+
+        public int? BookingId { get; set; }
+
+        public bool IsRead { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public Booking Booking { get; set; }
+        public ApplicationUser User { get; set; }
     }
 }
 ```
 
-### Payment Statuses
-- `Pending`
-- `Paid`
-- `Failed` (optional for future use)
+## Purpose of Fields
+- `UserId`: who receives the notification
+- `Title`: short notification title
+- `Message`: detailed notification message
+- `Type`: category such as `Request`, `Booking`, or `Payment`
+- `BookingId`: related booking if applicable
+- `IsRead`: read/unread state
+- `CreatedAt`: creation timestamp
 
 ---
 
-# 4) Booking Relationship
+# 2) ApplicationDbContext Setup
 
-## Booking.cs
-The booking model includes:
+## File
+`Data/ApplicationDbContext.cs`
 
+## DbSet
 ```csharp
-public Payment? Payment { get; set; }
+public DbSet<Notification> Notifications { get; set; }
 ```
 
----
-
-## ApplicationDbContext
-The payment table is registered using:
-
+## Relationship
 ```csharp
-public DbSet<Payment> Payments { get; set; }
-```
-
-and the one-to-one relationship is configured as:
-
-```csharp
-builder.Entity<Payment>()
-    .HasOne(p => p.Booking)
-    .WithOne(b => b.Payment)
-    .HasForeignKey<Payment>(p => p.BookingId)
+builder.Entity<Notification>()
+    .HasOne(n => n.User)
+    .WithMany()
+    .HasForeignKey(n => n.UserId)
     .OnDelete(DeleteBehavior.Cascade);
 ```
 
 ---
 
-# 5) Migration
+# 3) Migration
 
-After adding the payment model and relationship:
+After adding the notification model:
 
 ```powershell
-Add-Migration AddPaymentTable
+Add-Migration AddNotifications
 Update-Database
 ```
 
 ---
 
-# 6) Payment Summary API
+# 4) NotificationController
 
-## Endpoint
-`GET /api/patient/payments/summary/{bookingId}`
+## File
+`Controllers/NotificationController.cs`
 
-## Purpose
-Returns the payment page summary before the patient confirms payment.
+## Endpoints
 
-## Response Example
-```json
-{
-  "nurseName": "Sarah Hassan",
-  "serviceName": "IV Therapy",
-  "date": "2026-03-11",
-  "time": "10:00",
-  "amount": 50.0
-}
+### A) Get all notifications
+```http
+GET /api/notification
+```
+
+### B) Mark one notification as read
+```http
+PUT /api/notification/{id}/read
+```
+
+### C) Mark all notifications as read
+```http
+PUT /api/notification/read-all
 ```
 
 ---
 
-# 7) Create Payment Intent API
+# 5) Get Notifications Response
 
-## Endpoint
-`POST /api/patient/payments/create-intent/{bookingId}`
+The notifications list returns:
+- `NotificationId`
+- `Title`
+- `Message`
+- `Type`
+- `BookingId`
+- `IsRead`
+- `CreatedAt`
+- `targetScreen`
 
-## Purpose
-Creates a Stripe Payment Intent and returns `clientSecret` to Flutter.
-
-## Validation Rules
-- booking must belong to logged-in patient
-- booking must exist
-- booking status must be `Accepted`
-- booking must not already have a paid payment
-
-## Response Example
+## Example Response
 ```json
-{
-  "clientSecret": "pi_xxx_secret_xxx"
-}
+[
+  {
+    "notificationId": 1,
+    "title": "New Service Request",
+    "message": "You have received a new service request from a patient.",
+    "type": "Request",
+    "bookingId": 15,
+    "isRead": false,
+    "createdAt": "2026-03-27T10:30:00Z",
+    "targetScreen": "RequestDetails"
+  },
+  {
+    "notificationId": 2,
+    "title": "Payment Received",
+    "message": "The patient has completed the payment for the appointment.",
+    "type": "Payment",
+    "bookingId": 15,
+    "isRead": false,
+    "createdAt": "2026-03-27T11:00:00Z",
+    "targetScreen": "AppointmentDetails"
+  }
+]
 ```
 
 ---
 
-# 8) Confirm Payment API
+# 6) targetScreen Mapping
 
-## Endpoint
-`POST /api/patient/payments/confirm/{bookingId}`
+The backend returns `targetScreen` so Flutter knows where to navigate.
 
-## Purpose
-Confirms payment internally in the project after Flutter reports successful Stripe payment.
+## Current Mapping
+- `Request` → `RequestDetails`
+- `Payment` → `AppointmentDetails`
+- `Booking` → `AppointmentDetails`
+- `Account` → `null`
 
-## Backend Logic
+---
+
+# 7) Where Notifications Are Created
+
+## A) AdminController
+### Nurse account approval / rejection
+When admin verifies a nurse:
+- `Approved` → notification title: `Account Approved`
+- `Rejected` → notification title: `Account Rejected`
+
+Receiver:
+- nurse
+
+Type:
+- `Account`
+
+---
+
+## B) PatientController
+### CreateBookingRequest
+When patient submits a new booking request:
+- notification title: `New Service Request`
+
+Receiver:
+- nurse
+
+Type:
+- `Request`
+
+### ConfirmPayment
+When patient completes payment:
+- notification title: `Payment Successful`
+
+Receiver:
+- patient
+
+Type:
+- `Payment`
+
+And also:
+- notification title: `Payment Received`
+
+Receiver:
+- nurse
+
+Type:
+- `Payment`
+
+### CancelAppointment
+When patient cancels appointment:
+- notification title: `Appointment Cancelled`
+
+Receiver:
+- nurse
+
+Type:
+- `Booking`
+
+---
+
+## C) NurseController
+### AcceptRequest
+When nurse accepts request:
+- notification title: `Booking Confirmed`
+
+Receiver:
+- patient
+
+Type:
+- `Booking`
+
+### DeclineRequest
+When nurse rejects request:
+- notification title: `Request Rejected`
+
+Receiver:
+- patient
+
+Type:
+- `Booking`
+
+### CompleteAppointment
+When nurse completes appointment:
+- notification title: `Appointment Completed`
+
+Receiver:
+- patient
+
+Type:
+- `Booking`
+
+### CancelAppointmentByNurse
+When nurse cancels appointment:
+- notification title: `Appointment Cancelled`
+
+Receiver:
+- patient
+
+Type:
+- `Booking`
+
+---
+
+# 8) Read Logic
+
+## Mark one as read
 The endpoint:
-- checks booking ownership
-- checks existing payment
-- creates or updates `Payment`
-- sets `Payment.Status = Paid`
-- updates `Booking.Status = Active`
-
-## Response Example
-```json
-{
-  "message": "Payment confirmed successfully.",
-  "bookingId": 15,
-  "amountPaid": 50.0,
-  "paymentStatus": "Paid",
-  "bookingStatus": "Active"
-}
+```http
+PUT /api/notification/{id}/read
 ```
-
----
-
-# 9) Get Payment API
-
-## Endpoint
-`GET /api/patient/payments/{bookingId}`
-
-## Purpose
-Returns stored payment information for a booking.
-
-## Response Example
-```json
-{
-  "paymentId": 3,
-  "bookingId": 15,
-  "amount": 50.0,
-  "status": "Paid",
-  "createdAt": "2026-03-26T10:30:00Z"
-}
+changes:
+```text
+IsRead = true
 ```
+for a single notification.
+
+## Mark all as read
+The endpoint:
+```http
+PUT /api/notification/read-all
+```
+changes:
+```text
+IsRead = true
+```
+for all unread notifications of the logged-in user.
 
 ---
 
-# 10) Success and Failed Screens
+# 9) Flutter Usage
 
-## Payment Success Screen
-This screen does not need a separate backend endpoint.
-
-It uses the response from:
-
-`POST /api/patient/payments/confirm/{bookingId}`
-
-Displayed data:
-- amount paid
-- booking id
-
-## Payment Failed Screen
-This screen also does not require a separate backend endpoint for the current version.
-
-If Stripe payment fails:
-- Flutter opens the failed screen directly
-- the user can retry payment
-
-### Retry Payment
-Retry simply repeats:
-- create payment intent
-- confirm payment in Flutter
-
----
-
-# 11) Flutter Integration Flow
-
-## Step 1
+## Open Notifications Screen
 Call:
-
 ```http
-GET /api/patient/payments/summary/{bookingId}
+GET /api/notification
 ```
 
-## Step 2
+## Tap one notification
+Use:
+- `bookingId`
+- `targetScreen`
+
+### If targetScreen = RequestDetails
+Navigate to:
+- request details screen
+
+### If targetScreen = AppointmentDetails
+Navigate to:
+- appointment details screen
+
+## Mark one as read
 Call:
-
 ```http
-POST /api/patient/payments/create-intent/{bookingId}
+PUT /api/notification/{id}/read
 ```
 
-## Step 3
-Use Stripe SDK in Flutter to confirm payment.
-
-## Step 4
-If success:
-call
-
+## Mark all as read
+Call:
 ```http
-POST /api/patient/payments/confirm/{bookingId}
+PUT /api/notification/read-all
 ```
-
-and open success screen.
-
-## Step 5
-If failed:
-open failed screen and allow retry.
 
 ---
 
-# 12) Important Notes
+# 10) What Was Implemented
 
-## Payment Availability
-Payment is allowed only when:
-- booking status = `Accepted`
-
-## After successful payment
-The booking status is changed to:
-- `Active`
-
-## Test Mode
-This payment flow uses Stripe test mode, not live mode.
+## Completed
+- Notification model
+- Notification DbSet
+- Notification relationship
+- Get notifications endpoint
+- Mark one as read endpoint
+- Mark all as read endpoint
+- targetScreen mapping
+- account verification notifications
+- new service request notification
+- booking accepted notification
+- booking rejected notification
+- payment successful notification
+- payment received notification
+- appointment cancelled notification
+- appointment completed notification
 
 ---
 
-# 13) Status
+# 11) Deferred for Later
 
-✔ Stripe setup documented  
-✔ Payment model added  
-✔ Payment summary API added  
-✔ Create payment intent API added  
-✔ Confirm payment API added  
-✔ Get payment API added  
-✔ Success / failed flow defined  
+The only notification item intentionally postponed is:
 
-⏳ Pending:
-- real webhook verification
-- optional failed payment persistence
-- Apple Pay integration details
+## Appointment Reminder
+This was postponed because automatic reminder notifications need:
+- background job
+- scheduler
+- or push notification service
+
+Examples:
+- Hangfire
+- Quartz.NET
+- BackgroundService
+- Firebase push notifications
+
+This is different from normal notifications because it is time-based, not action-based.
+
+---
+
+# 12) Final Note
+
+The current notification system is fully usable for the core app flow.
+
+It already supports:
+- patient notifications
+- nurse notifications
+- admin-triggered notifications
+- navigation from notification card to the correct screen
+
+
+---
+
+# 13) Appointment Reminder (مؤجل حاليًا)
+
+## ما هو Appointment Reminder؟
+هو إشعار يتم إرساله للمستخدم (المريض أو الممرض) قبل موعد الحجز بفترة معينة، مثل:
+- قبل الموعد بيوم
+- قبل الموعد بساعة
+
+مثال:
+"You have an appointment tomorrow at 10:00 AM"
+
+---
+
+## لماذا لم نقم بتنفيذه الآن؟
+
+تم تأجيل هذا الجزء لأنه يختلف عن باقي الإشعارات.
+
+جميع الإشعارات التي قمنا بتنفيذها تعتمد على **Action مباشر** مثل:
+- إنشاء حجز
+- قبول الطلب
+- الدفع
+- إلغاء الموعد
+
+أما الـ Appointment Reminder فهو يعتمد على **الوقت** وليس على حدث مباشر.
+
+---
+
+## ما المشكلة التقنية؟
+
+لكي يعمل Reminder بشكل صحيح، يجب أن يقوم السيرفر بـ:
+- مراقبة المواعيد بشكل مستمر
+- التحقق من الوقت الحالي
+- تحديد هل يوجد موعد قريب يحتاج Reminder
+- إنشاء Notification تلقائيًا
+
+وهذا يتطلب تشغيل كود في الخلفية بشكل دوري (بدون طلب من المستخدم).
+
+---
+
+## ما الذي نحتاجه لتنفيذه؟
+
+نحتاج إلى ما يسمى:
+
+### Background Job أو Scheduler
+
+وهو نظام يقوم بتشغيل كود بشكل تلقائي كل فترة (مثلاً كل دقيقة أو كل 5 دقائق).
+
+---
+
+## أمثلة على حلول في .NET
+
+- Hangfire
+- Quartz.NET
+- BackgroundService
+
+أو باستخدام:
+- Firebase Push Notifications (للموبايل)
+
+---
+
+## لماذا لم نستخدمه الآن؟
+
+لأن:
+- يزيد من تعقيد المشروع
+- يحتاج إعدادات إضافية
+- يحتاج إدارة دقيقة للوقت
+- يحتاج منع تكرار الإشعارات
+
+وحاليًا نحن نركز على إنهاء الـ Core System أولاً.
+
+---
+
+## كيف يمكن تنفيذه لاحقًا؟
+
+الخطوات العامة:
+
+1. إنشاء Background Job يعمل كل فترة (مثلاً كل دقيقة)
+2. جلب المواعيد القادمة من قاعدة البيانات
+3. مقارنة الوقت الحالي مع وقت الموعد
+4. إذا كان الموعد قريب (مثلاً خلال ساعة):
+   - يتم إنشاء Notification
+5. التأكد من عدم إرسال نفس Reminder أكثر من مرة
+
+---
+
+## ملاحظة
+
+يمكن حاليًا عمل Reminder بشكل مؤقت من جهة الـ Frontend (Flutter)، مثل:
+- عرض تنبيه داخل التطبيق بناءً على الوقت
+
+لكن هذا ليس Reminder حقيقي من السيرفر.
+
+---
+
+## الخلاصة
+
+تم تأجيل Appointment Reminder لأنه:
+- يعتمد على الوقت وليس على حدث
+- يحتاج Background Processing
+- ليس ضروري لإكمال الوظائف الأساسية للنظام
+
+وسيتم إضافته لاحقًا كـ تحسين (Enhancement) للنظام.

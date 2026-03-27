@@ -5,14 +5,7 @@ using NurseNow.Data;
 using NurseNow.DTOs;
 using NurseNow.Models;
 using Stripe;
-using Stripe.Checkout;
-using NurseNow.Models;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
-
-
-
 
 namespace NurseNow.Controllers
 {
@@ -28,7 +21,6 @@ namespace NurseNow.Controllers
             _context = context;
         }
 
-
         [HttpGet("nurses/browse")]
         public async Task<IActionResult> BrowseNurses([FromQuery] BrowseNursesQueryDto query)
         {
@@ -37,7 +29,6 @@ namespace NurseNow.Controllers
                 .Where(n => n.VerificationStatus == "Approved")
                 .AsQueryable();
 
-            // Search: Name or Specialty or Location
             if (!string.IsNullOrWhiteSpace(query.Search))
             {
                 var search = query.Search.Trim().ToLower();
@@ -49,7 +40,6 @@ namespace NurseNow.Controllers
                 );
             }
 
-            // Filter by location (Governorate)
             if (!string.IsNullOrWhiteSpace(query.Location))
             {
                 var location = query.Location.Trim().ToLower();
@@ -58,7 +48,6 @@ namespace NurseNow.Controllers
                     n.Location != null && n.Location.ToLower() == location);
             }
 
-            // Filter by service
             if (query.ServiceCatalogId.HasValue)
             {
                 nursesQuery = nursesQuery.Where(n =>
@@ -67,18 +56,16 @@ namespace NurseNow.Controllers
                         s.ServiceCatalogId == query.ServiceCatalogId.Value));
             }
 
-            // Sorting
             if (!string.IsNullOrWhiteSpace(query.Location))
             {
                 nursesQuery = nursesQuery.OrderBy(n => n.Address);
             }
             else
             {
-                // مؤقتًا لعدم وجود rating حقيقي بعد
                 nursesQuery = nursesQuery.OrderByDescending(n => n.ExperienceYears);
             }
-            var totalCount = await nursesQuery.CountAsync();
 
+            var totalCount = await nursesQuery.CountAsync();
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
             var nurses = await nursesQuery
@@ -95,10 +82,8 @@ namespace NurseNow.Controllers
                     profileImageUrl = n.ProfileImagePath != null
                         ? $"{baseUrl}/{n.ProfileImagePath}"
                         : null,
-
                     rating = 0.0,
                     reviewsCount = 0,
-
                     price = query.ServiceCatalogId.HasValue
                         ? _context.Services
                             .Where(s => s.NurseId == n.UserId && s.ServiceCatalogId == query.ServiceCatalogId.Value)
@@ -108,7 +93,6 @@ namespace NurseNow.Controllers
                             .Where(s => s.NurseId == n.UserId)
                             .Select(s => (decimal?)s.Price)
                             .Min(),
-
                     availabilityLabel = _context.WeeklyAvailabilities.Any(w =>
                         w.NurseId == n.UserId && w.IsActive)
                         ? "Available This Week"
@@ -236,7 +220,6 @@ namespace NurseNow.Controllers
                 return BadRequest("daysAhead must be greater than 0.");
 
             var availableDates = new List<string>();
-
             var today = DateTime.Today;
 
             for (int i = 0; i < daysAhead; i++)
@@ -247,11 +230,9 @@ namespace NurseNow.Controllers
                 var overrideRecord = await _context.AvailabilityOverrides
                     .FirstOrDefaultAsync(o => o.NurseId == nurseId && o.Date.Date == currentDate.Date);
 
-                // إذا اليوم blocked -> لا نضيفه
                 if (overrideRecord != null && overrideRecord.IsBlocked)
                     continue;
 
-                // إذا عنده override ساعات محددة -> نضيفه
                 if (overrideRecord != null &&
                     !overrideRecord.IsBlocked &&
                     overrideRecord.StartTime.HasValue &&
@@ -262,7 +243,6 @@ namespace NurseNow.Controllers
                     continue;
                 }
 
-                // إذا ما في override، نعتمد على الـ weekly availability
                 var hasWeeklyAvailability = await _context.WeeklyAvailabilities.AnyAsync(w =>
                     w.NurseId == nurseId &&
                     w.DayOfWeek == dayName &&
@@ -277,11 +257,9 @@ namespace NurseNow.Controllers
 
             return Ok(availableDates);
         }
+
         [HttpGet("nurses/{nurseId}/available-slots")]
-        public async Task<IActionResult> GetAvailableSlots(
-    string nurseId,
-    [FromQuery] int serviceId,
-    [FromQuery] DateTime date)
+        public async Task<IActionResult> GetAvailableSlots(string nurseId, [FromQuery] int serviceId, [FromQuery] DateTime date)
         {
             var nurseExists = await _context.NurseProfiles
                 .AnyAsync(n => n.UserId == nurseId && n.VerificationStatus == "Approved");
@@ -304,13 +282,9 @@ namespace NurseNow.Controllers
             var overrideRecord = await _context.AvailabilityOverrides
                 .FirstOrDefaultAsync(o => o.NurseId == nurseId && o.Date.Date == date.Date);
 
-            // إذا اليوم blocked
             if (overrideRecord != null && overrideRecord.IsBlocked)
-            {
                 return Ok(new List<string>());
-            }
 
-            // إذا في override ساعات مخصصة
             if (overrideRecord != null &&
                 !overrideRecord.IsBlocked &&
                 overrideRecord.StartTime.HasValue &&
@@ -321,7 +295,6 @@ namespace NurseNow.Controllers
             }
             else
             {
-                // اعتمد على الـ weekly availability
                 var dayName = date.DayOfWeek.ToString();
 
                 var weeklyAvailability = await _context.WeeklyAvailabilities
@@ -341,7 +314,6 @@ namespace NurseNow.Controllers
                 return Ok(new List<string>());
 
             var slots = new List<string>();
-
             var current = startTime.Value;
             var duration = TimeSpan.FromMinutes(serviceDuration);
 
@@ -352,16 +324,12 @@ namespace NurseNow.Controllers
             }
 
             return Ok(slots);
-
-
         }
-
-
 
         [HttpPost("bookings")]
         public async Task<IActionResult> CreateBookingRequest([FromBody] CreateBookingRequestDto model)
         {
-            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -386,7 +354,6 @@ namespace NurseNow.Controllers
             var duration = TimeSpan.FromMinutes(service.ServiceCatalog.DefaultDurationInMinutes);
             var endTime = model.StartTime.Add(duration);
 
-            // التحقق من أن اليوم غير blocked
             var overrideRecord = await _context.AvailabilityOverrides
                 .FirstOrDefaultAsync(o => o.NurseId == model.NurseId && o.Date.Date == model.Date.Date);
 
@@ -427,7 +394,6 @@ namespace NurseNow.Controllers
             if (model.StartTime < workingStart.Value || endTime > workingEnd.Value)
                 return BadRequest("The selected time slot is outside working hours.");
 
-            // مؤقتًا: التحقق من عدم وجود حجز بنفس البداية/النهاية والتاريخ
             var slotAlreadyBooked = await _context.Bookings.AnyAsync(b =>
                 b.NurseId == model.NurseId &&
                 b.BookingDate.Date == model.Date.Date &&
@@ -454,6 +420,18 @@ namespace NurseNow.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.NurseId,
+                Title = "New Service Request",
+                Message = "You have received a new service request from a patient.",
+                Type = "Request",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
             return Ok(new
             {
                 message = "Booking request submitted successfully.",
@@ -471,11 +449,10 @@ namespace NurseNow.Controllers
             });
         }
 
-
         [HttpGet("appointments")]
         public async Task<IActionResult> GetPatientAppointments([FromQuery] string tab = "upcoming")
         {
-            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -537,11 +514,10 @@ namespace NurseNow.Controllers
             return Ok(appointments);
         }
 
-
         [HttpGet("appointments/{bookingId}")]
         public async Task<IActionResult> GetAppointmentDetails(int bookingId)
         {
-            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -579,11 +555,10 @@ namespace NurseNow.Controllers
             });
         }
 
-
         [HttpPut("appointments/{bookingId}/cancel")]
         public async Task<IActionResult> CancelAppointment(int bookingId)
         {
-            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -599,6 +574,16 @@ namespace NurseNow.Controllers
 
             booking.Status = "Cancelled";
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.NurseId,
+                Title = "Appointment Cancelled",
+                Message = "The patient has cancelled the appointment.",
+                Type = "Booking",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -607,8 +592,6 @@ namespace NurseNow.Controllers
                 status = booking.Status
             });
         }
-
-
 
         [HttpPost("payments/create-intent/{bookingId}")]
         public async Task<IActionResult> CreatePaymentIntent(int bookingId)
@@ -639,10 +622,10 @@ namespace NurseNow.Controllers
                 Amount = (long)(booking.Service.Price * 100),
                 Currency = "usd",
                 Metadata = new Dictionary<string, string>
-              {
-                  { "bookingId", bookingId.ToString() },
-                  { "patientId", patientId }
-              }
+                {
+                    { "bookingId", bookingId.ToString() },
+                    { "patientId", patientId }
+                }
             };
 
             var service = new PaymentIntentService();
@@ -657,7 +640,7 @@ namespace NurseNow.Controllers
         [HttpPost("payments/confirm/{bookingId}")]
         public async Task<IActionResult> ConfirmPayment(int bookingId)
         {
-            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -694,6 +677,26 @@ namespace NurseNow.Controllers
 
             booking.Status = "Active";
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.PatientId,
+                Title = "Payment Successful",
+                Message = "Your payment was completed successfully.",
+                Type = "Payment",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.NurseId,
+                Title = "Payment Received",
+                Message = "The patient has completed the payment for the appointment.",
+                Type = "Payment",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -705,8 +708,6 @@ namespace NurseNow.Controllers
                 bookingStatus = booking.Status
             });
         }
-
-
 
         [HttpGet("payments/{bookingId}")]
         public async Task<IActionResult> GetPayment(int bookingId)
@@ -738,12 +739,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpGet("payments/summary/{bookingId}")]
         public async Task<IActionResult> GetPaymentSummary(int bookingId)
         {
             var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (patientId == null)
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .Include(b => b.Nurse)
@@ -763,11 +765,5 @@ namespace NurseNow.Controllers
                 amount = booking.Service.Price
             });
         }
-
-
-
-
-
-
     }
 }

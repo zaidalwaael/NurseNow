@@ -28,14 +28,16 @@ namespace NurseNow.Controllers
         }
 
         [HttpPut("update-profile")]
-        [Authorize(Roles = "Nurse")]
         public async Task<IActionResult> UpdateProfile(
-    [FromForm] UpdateNurseProfileDto model,
-    IFormFile? profileImage,
-    IFormFile? certificate,
-    IFormFile? nationalIdImage)
+            [FromForm] UpdateNurseProfileDto model,
+            IFormFile? profileImage,
+            IFormFile? certificate,
+            IFormFile? nationalIdImage)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var nurseProfile = await _context.NurseProfiles
                 .FirstOrDefaultAsync(n => n.UserId == userId);
@@ -43,7 +45,6 @@ namespace NurseNow.Controllers
             if (nurseProfile == null)
                 return NotFound("Nurse profile not found.");
 
-            // Update text fields
             nurseProfile.PhoneNumber = model.PhoneNumber;
             nurseProfile.Address = model.Address;
             nurseProfile.Location = model.Location;
@@ -58,7 +59,6 @@ namespace NurseNow.Controllers
             if (!Directory.Exists(uploadsFolder))
                 Directory.CreateDirectory(uploadsFolder);
 
-            // Profile Image
             if (profileImage != null)
             {
                 var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
@@ -78,7 +78,6 @@ namespace NurseNow.Controllers
                 nurseProfile.ProfileImagePath = $"uploads/{imageName}";
             }
 
-            // Certificate PDF
             if (certificate != null)
             {
                 var certExtension = Path.GetExtension(certificate.FileName).ToLower();
@@ -97,7 +96,6 @@ namespace NurseNow.Controllers
                 nurseProfile.CertificatePath = $"uploads/{certName}";
             }
 
-            // National ID Image
             if (nationalIdImage != null)
             {
                 var allowedImageExtensions = new[] { ".jpg", ".jpeg", ".png" };
@@ -128,15 +126,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
-        // ============================
-        // Full Profile Widget
-        // ============================
         [HttpGet("profile")]
         public async Task<IActionResult> GetFullProfile()
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var nurseProfile = await _context.NurseProfiles
                 .Include(n => n.User)
@@ -180,17 +176,17 @@ namespace NurseNow.Controllers
                     specialization = nurseProfile.Specialization,
                     experienceYears = nurseProfile.ExperienceYears
                 },
-                services = services
+                services
             });
         }
 
-        // ============================
-        // Personal Info
-        // ============================
         [HttpGet("profile/personal-info")]
         public async Task<IActionResult> GetPersonalInfo()
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var nurseProfile = await _context.NurseProfiles
                 .Include(n => n.User)
@@ -215,6 +211,9 @@ namespace NurseNow.Controllers
         {
             var userId = GetCurrentUserId();
 
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var nurseProfile = await _context.NurseProfiles
                 .Include(n => n.User)
                 .FirstOrDefaultAsync(n => n.UserId == userId);
@@ -233,13 +232,13 @@ namespace NurseNow.Controllers
             return Ok("Personal information updated successfully.");
         }
 
-        // ============================
-        // Professional Details
-        // ============================
         [HttpGet("profile/professional-details")]
         public async Task<IActionResult> GetProfessionalDetails()
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var nurseProfile = await _context.NurseProfiles
                 .FirstOrDefaultAsync(n => n.UserId == userId);
@@ -260,6 +259,9 @@ namespace NurseNow.Controllers
         {
             var userId = GetCurrentUserId();
 
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var nurseProfile = await _context.NurseProfiles
                 .FirstOrDefaultAsync(n => n.UserId == userId);
 
@@ -275,9 +277,6 @@ namespace NurseNow.Controllers
             return Ok("Professional details updated successfully.");
         }
 
-        // ============================
-        // Service Catalog (Dropdown List)
-        // ============================
         [HttpGet("service-catalog")]
         public async Task<IActionResult> GetServiceCatalog()
         {
@@ -293,13 +292,13 @@ namespace NurseNow.Controllers
             return Ok(catalog);
         }
 
-        // ============================
-        // Offered Services
-        // ============================
         [HttpGet("services")]
         public async Task<IActionResult> GetMyServices()
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var services = await _context.Services
                 .Include(s => s.ServiceCatalog)
@@ -322,6 +321,9 @@ namespace NurseNow.Controllers
         {
             var userId = GetCurrentUserId();
 
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var serviceCatalog = await _context.ServiceCatalogs
                 .FirstOrDefaultAsync(s => s.ServiceCatalogId == model.ServiceCatalogId);
 
@@ -336,7 +338,7 @@ namespace NurseNow.Controllers
 
             var service = new Service
             {
-                NurseId = userId!,
+                NurseId = userId,
                 ServiceCatalogId = model.ServiceCatalogId,
                 Price = model.Price
             };
@@ -351,6 +353,9 @@ namespace NurseNow.Controllers
         public async Task<IActionResult> UpdateService(int id, [FromBody] SaveNurseServiceDto model)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var service = await _context.Services
                 .FirstOrDefaultAsync(s => s.ServiceId == id && s.NurseId == userId);
@@ -377,6 +382,9 @@ namespace NurseNow.Controllers
         {
             var userId = GetCurrentUserId();
 
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var service = await _context.Services
                 .FirstOrDefaultAsync(s => s.ServiceId == id && s.NurseId == userId);
 
@@ -389,12 +397,13 @@ namespace NurseNow.Controllers
             return Ok("Service deleted successfully.");
         }
 
-
-
         [HttpGet("weekly-availability")]
         public async Task<IActionResult> GetWeeklyAvailability()
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var weeklySchedule = await _context.WeeklyAvailabilities
                 .Where(w => w.NurseId == userId)
@@ -412,20 +421,21 @@ namespace NurseNow.Controllers
             return Ok(weeklySchedule);
         }
 
-
-
         [HttpPost("weekly-availability")]
         public async Task<IActionResult> AddWeeklyAvailability([FromBody] AddWeeklyAvailabilityDto model)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             if (model.StartTime >= model.EndTime)
                 return BadRequest("Start time must be earlier than end time.");
 
             var validDays = new[]
             {
-        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
-    };
+                "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
+            };
 
             if (!validDays.Contains(model.DayOfWeek))
                 return BadRequest("Invalid day of week.");
@@ -441,7 +451,7 @@ namespace NurseNow.Controllers
 
             var availability = new WeeklyAvailability
             {
-                NurseId = userId!,
+                NurseId = userId,
                 DayOfWeek = model.DayOfWeek,
                 StartTime = model.StartTime,
                 EndTime = model.EndTime,
@@ -458,12 +468,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpDelete("weekly-availability/{id}")]
         public async Task<IActionResult> DeleteWeeklyAvailability(int id)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var availability = await _context.WeeklyAvailabilities
                 .FirstOrDefaultAsync(w => w.WeeklyAvailabilityId == id && w.NurseId == userId);
@@ -480,11 +491,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
         [HttpGet("availability/day-details")]
         public async Task<IActionResult> GetDayDetails([FromQuery] DateTime date)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var dayOfWeek = date.DayOfWeek.ToString();
 
@@ -511,7 +524,6 @@ namespace NurseNow.Controllers
                 })
                 .FirstOrDefaultAsync();
 
-            // Placeholder until booking system is implemented
             var bookedAppointments = new List<object>();
 
             return Ok(new
@@ -524,14 +536,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
-
-
         [HttpPost("availability/override")]
         public async Task<IActionResult> OverrideDayAvailability([FromBody] OverrideDayAvailabilityDto model)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             if (model.StartTime >= model.EndTime)
                 return BadRequest("Start time must be earlier than end time.");
@@ -549,7 +560,7 @@ namespace NurseNow.Controllers
             {
                 var newOverride = new AvailabilityOverride
                 {
-                    NurseId = userId!,
+                    NurseId = userId,
                     Date = model.Date.Date,
                     StartTime = model.StartTime,
                     EndTime = model.EndTime,
@@ -567,12 +578,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpPost("availability/block-day")]
         public async Task<IActionResult> BlockDay([FromBody] BlockDayDto model)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var existingOverride = await _context.AvailabilityOverrides
                 .FirstOrDefaultAsync(o => o.NurseId == userId && o.Date.Date == model.Date.Date);
@@ -587,7 +599,7 @@ namespace NurseNow.Controllers
             {
                 var blockedDay = new AvailabilityOverride
                 {
-                    NurseId = userId!,
+                    NurseId = userId,
                     Date = model.Date.Date,
                     StartTime = null,
                     EndTime = null,
@@ -605,12 +617,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpDelete("availability/override")]
         public async Task<IActionResult> RemoveDayOverride([FromQuery] DateTime date)
         {
             var userId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
 
             var overrideRecord = await _context.AvailabilityOverrides
                 .FirstOrDefaultAsync(o => o.NurseId == userId && o.Date.Date == date.Date);
@@ -632,10 +645,13 @@ namespace NurseNow.Controllers
         {
             var nurseId = GetCurrentUserId();
 
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
+
             var query = _context.Bookings
                 .Include(b => b.Patient)
                 .Include(b => b.Service)
-                .ThenInclude(s => s.ServiceCatalog)
+                    .ThenInclude(s => s.ServiceCatalog)
                 .Where(b => b.NurseId == nurseId)
                 .AsQueryable();
 
@@ -666,12 +682,13 @@ namespace NurseNow.Controllers
             return Ok(requests);
         }
 
-
-
         [HttpGet("requests/{bookingId}")]
         public async Task<IActionResult> GetRequestDetails(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .Include(b => b.Patient)
@@ -698,11 +715,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
         [HttpPut("requests/{bookingId}/accept")]
         public async Task<IActionResult> AcceptRequest(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
@@ -715,6 +734,16 @@ namespace NurseNow.Controllers
 
             booking.Status = "Accepted";
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.PatientId,
+                Title = "Booking Confirmed",
+                Message = "Your booking request has been accepted by the nurse.",
+                Type = "Booking",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -724,11 +753,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
         [HttpPut("requests/{bookingId}/decline")]
         public async Task<IActionResult> DeclineRequest(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
@@ -740,6 +771,16 @@ namespace NurseNow.Controllers
                 return BadRequest("Only pending requests can be declined.");
 
             booking.Status = "Rejected";
+
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.PatientId,
+                Title = "Request Rejected",
+                Message = "Your booking request has been rejected by the nurse.",
+                Type = "Booking",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
 
             await _context.SaveChangesAsync();
 
@@ -811,11 +852,13 @@ namespace NurseNow.Controllers
             return Ok(appointments);
         }
 
-
         [HttpGet("appointments/{bookingId}")]
         public async Task<IActionResult> GetAppointmentDetailsForNurse(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .Include(b => b.Patient)
@@ -841,12 +884,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpPut("appointments/{bookingId}/complete")]
         public async Task<IActionResult> CompleteAppointment(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
@@ -859,6 +903,16 @@ namespace NurseNow.Controllers
 
             booking.Status = "Completed";
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.PatientId,
+                Title = "Appointment Completed",
+                Message = "Your appointment has been marked as completed.",
+                Type = "Booking",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -868,12 +922,13 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpPut("appointments/{bookingId}/cancel")]
         public async Task<IActionResult> CancelAppointmentByNurse(int bookingId)
         {
             var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
 
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.NurseId == nurseId);
@@ -886,6 +941,16 @@ namespace NurseNow.Controllers
 
             booking.Status = "Cancelled";
 
+            _context.Notifications.Add(new Notification
+            {
+                UserId = booking.PatientId,
+                Title = "Appointment Cancelled",
+                Message = "The nurse has cancelled your appointment.",
+                Type = "Booking",
+                BookingId = booking.BookingId,
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new
@@ -894,7 +959,5 @@ namespace NurseNow.Controllers
                 status = booking.Status
             });
         }
-
-
     }
 }
