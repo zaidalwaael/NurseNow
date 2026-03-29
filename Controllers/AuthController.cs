@@ -64,8 +64,18 @@ namespace NurseNow.Controllers
                 };
 
                 _context.NurseProfiles.Add(nurseProfile);
-                await _context.SaveChangesAsync();
             }
+            else if (model.Role == "Patient")
+            {
+                var patientProfile = new PatientProfile
+                {
+                    UserId = user.Id
+                };
+
+                _context.PatientProfiles.Add(patientProfile);
+            }
+
+            await _context.SaveChangesAsync();
             return Ok("User registered successfully");
         }
         [HttpPost("login")]
@@ -101,29 +111,28 @@ namespace NurseNow.Controllers
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
-                return Ok("If the email exists, a reset link has been sent.");
+                return Ok(new
+                {
+                    message = "If the email exists, a reset token has been sent."
+                });
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
-            /* var resetLink = $"https://yourdomain.com/reset-password?email={user.Email}&token={encodedToken}";
+            var emailBody = $@"
+        <h2>Password Reset</h2>
+        <p>You requested to reset your password.</p>
+        <p>Use the following reset token inside the app:</p>
+        <p><strong>{encodedToken}</strong></p>
+        <p>If you did not request this, please ignore this email.</p>";
 
-                  var emailBody = $@"
-                  <h2>Password Reset</h2>
-                  <p>Click the link below to reset your password:</p>
-                  <a href='{resetLink}'>Reset Password</a> ";
-                                                  
-             await _emailService.SendEmailAsync(user.Email, "Reset Password", emailBody);
-            */
+            await _emailService.SendEmailAsync(user.Email!, "Reset Password Token", emailBody);
 
             return Ok(new
             {
-                messsage = "reset token generated successfully",
-                email = user.Email,
-                token = encodedToken
+                message = "If the email exists, a reset token has been sent."
             });
         }
-
 
 
 
@@ -150,7 +159,10 @@ namespace NurseNow.Controllers
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            return Ok("Password has been reset successfully.");
+            return Ok(new
+            {
+                message = "Password has been reset successfully."
+            });
         }
 
 

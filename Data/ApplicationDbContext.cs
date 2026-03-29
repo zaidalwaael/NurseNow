@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Models;
+using Stripe;
 
 namespace NurseNow.Data
 {
@@ -10,11 +11,14 @@ namespace NurseNow.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<Notification> Notifications { get; set; }
-        public DbSet<Service> Services { get; set; }
+        public DbSet<NurseNow.Models.Service> Services { get; set; }
         public DbSet<ServiceCatalog> ServiceCatalogs { get; set; }
         public DbSet<WeeklyAvailability> WeeklyAvailabilities { get; set; }
         public DbSet<AvailabilityOverride> AvailabilityOverrides { get; set; }
         public DbSet<Booking> Bookings { get; set; }
+        public DbSet<PatientProfile> PatientProfiles { get; set; }
+        public DbSet<NurseNow.Models.Review> Reviews { get; set; }
+
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -29,19 +33,19 @@ namespace NurseNow.Data
                 .Property(p => p.Amount)
                 .HasPrecision(18, 2);
 
-            builder.Entity<Service>()
+            builder.Entity<NurseNow.Models.Service>()
                 .HasOne(s => s.Nurse)
                 .WithMany()
                 .HasForeignKey(s => s.NurseId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Service>()
+            builder.Entity<NurseNow.Models.Service>()
                 .HasOne(s => s.ServiceCatalog)
                 .WithMany()
                 .HasForeignKey(s => s.ServiceCatalogId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Service>()
+            builder.Entity<NurseNow.Models.Service>()
                 .Property(s => s.Price)
                 .HasPrecision(18, 2);
 
@@ -86,6 +90,30 @@ namespace NurseNow.Data
                 .WithMany()
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<PatientProfile>()
+    .HasOne(p => p.User)
+    .WithMany()
+    .HasForeignKey(p => p.UserId)
+    .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<NurseNow.Models.Review>()
+    .HasOne(r => r.Booking)
+    .WithMany()
+    .HasForeignKey(r => r.BookingId)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<NurseNow.Models.Review>()
+                .HasOne(r => r.Patient)
+                .WithMany()
+                .HasForeignKey(r => r.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<NurseNow.Models.Review>()
+                .HasOne(r => r.Nurse)
+                .WithMany()
+                .HasForeignKey(r => r.NurseId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

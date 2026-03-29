@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NurseNow.Data;
 
@@ -11,9 +12,11 @@ using NurseNow.Data;
 namespace NurseNow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260329085405_AddPatientProfile")]
+    partial class AddPatientProfile
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,12 +42,6 @@ namespace NurseNow.Migrations
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("time");
 
-                    b.Property<bool>("IsReviewDismissed")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsReviewSubmitted")
-                        .HasColumnType("bit");
-
                     b.Property<string>("NurseId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -52,9 +49,6 @@ namespace NurseNow.Migrations
                     b.Property<string>("PatientId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ReviewRemindLaterAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("ServiceAddress")
                         .IsRequired()
@@ -460,45 +454,6 @@ namespace NurseNow.Migrations
                     b.ToTable("Payments");
                 });
 
-            modelBuilder.Entity("NurseNow.Models.Review", b =>
-                {
-                    b.Property<int>("ReviewId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
-
-                    b.Property<int>("BookingId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Comment")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("NurseId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("PatientId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("int");
-
-                    b.HasKey("ReviewId");
-
-                    b.HasIndex("BookingId");
-
-                    b.HasIndex("NurseId");
-
-                    b.HasIndex("PatientId");
-
-                    b.ToTable("Reviews");
-                });
-
             modelBuilder.Entity("NurseNow.Models.Service", b =>
                 {
                     b.Property<int>("ServiceId")
@@ -766,33 +721,6 @@ namespace NurseNow.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
-                });
-
-            modelBuilder.Entity("NurseNow.Models.Review", b =>
-                {
-                    b.HasOne("Booking", "Booking")
-                        .WithMany()
-                        .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NurseNow.Models.ApplicationUser", "Nurse")
-                        .WithMany()
-                        .HasForeignKey("NurseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NurseNow.Models.ApplicationUser", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Booking");
-
-                    b.Navigation("Nurse");
-
-                    b.Navigation("Patient");
                 });
 
             modelBuilder.Entity("NurseNow.Models.Service", b =>

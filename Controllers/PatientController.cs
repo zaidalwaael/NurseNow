@@ -82,8 +82,14 @@ namespace NurseNow.Controllers
                     profileImageUrl = n.ProfileImagePath != null
                         ? $"{baseUrl}/{n.ProfileImagePath}"
                         : null,
-                    rating = 0.0,
-                    reviewsCount = 0,
+                    rating = Math.Round(
+    _context.Reviews
+        .Where(r => r.NurseId == n.UserId)
+        .Select(r => (double?)r.Rating)
+        .Average() ?? 0.0, 1),
+
+                    reviewsCount = _context.Reviews
+    .Count(r => r.NurseId == n.UserId),
                     price = query.ServiceCatalogId.HasValue
                         ? _context.Services
                             .Where(s => s.NurseId == n.UserId && s.ServiceCatalogId == query.ServiceCatalogId.Value)
@@ -169,8 +175,14 @@ namespace NurseNow.Controllers
                     ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
                     : null,
                 headline,
-                rating = 0.0,
-                reviewsCount = 0,
+                rating = Math.Round(
+    await _context.Reviews
+        .Where(r => r.NurseId == nurseProfile.UserId)
+        .Select(r => (double?)r.Rating)
+        .AverageAsync() ?? 0.0, 1),
+
+                reviewsCount = await _context.Reviews
+    .CountAsync(r => r.NurseId == nurseProfile.UserId),
                 experienceYears = nurseProfile.ExperienceYears,
                 location = nurseProfile.Location,
                 address = nurseProfile.Address,
@@ -450,9 +462,9 @@ namespace NurseNow.Controllers
         }
 
         [HttpGet("appointments")]
-        public async Task<IActionResult> GetPatientAppointments([FromQuery] string tab = "upcoming")
+        public async Task<IActionResult> GetPatientAppointments([FromQuery] string tab = "upcoming", [FromQuery] int? limit = null)
         {
-            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var patientId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             if (patientId == null)
                 return Unauthorized();
@@ -483,10 +495,16 @@ namespace NurseNow.Controllers
                 return BadRequest("Invalid tab value. Use 'upcoming' or 'past'.");
             }
 
-            var bookings = await query
+            query = query
                 .OrderBy(b => b.BookingDate)
-                .ThenBy(b => b.StartTime)
-                .ToListAsync();
+                .ThenBy(b => b.StartTime);
+
+            if (limit.HasValue && limit.Value > 0)
+            {
+                query = query.Take(limit.Value);
+            }
+
+            var bookings = await query.ToListAsync();
 
             var nurseIds = bookings.Select(b => b.NurseId).Distinct().ToList();
 
@@ -765,5 +783,66 @@ namespace NurseNow.Controllers
                 amount = booking.Service.Price
             });
         }
+
+        [HttpGet("nurses/{nurseId}/reviews")]
+        public async Task<IActionResult> GetNurseReviews(string nurseId)
+        {
+            var nurseExists = await _context.NurseProfiles
+                .AnyAsync(n => n.UserId == nurseId && n.VerificationStatus == "Approved");
+
+            if (!nurseExists)
+                return NotFound("Nurse not found.");
+
+            var reviews = await _context.Reviews
+                .Include(r => r.Patient)
+                .Where(r => r.NurseId == nurseId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    reviewId = r.ReviewId,
+                    patientName = r.Patient.FullName,
+                    rating = r.Rating,
+                    comment = r.Comment,
+                    createdAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            var averageRating = reviews.Any()
+                ? Math.Round(reviews.Average(r => (double)r.rating), 1)
+                : 0.0;
+
+            var reviewsCount = reviews.Count;
+
+            return Ok(new
+            {
+                averageRating,
+                reviewsCount,
+                reviews
+            });
+        }
+
+        [HttpGet("dashboard-summary")]
+        public async Task<IActionResult> GetPatientDashboardSummary()
+        {
+            var patientId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(patientId))
+                return Unauthorized();
+
+            var totalBookings = await _context.Bookings
+                .CountAsync(b => b.PatientId == patientId);
+
+            var activeRequests = await _context.Bookings
+                .CountAsync(b =>
+                    b.PatientId == patientId &&
+                    (b.Status == "Pending" || b.Status == "Accepted" || b.Status == "Active"));
+
+            return Ok(new
+            {
+                totalBookings,
+                activeRequests
+            });
+        }
+
     }
 }

@@ -166,6 +166,7 @@ namespace NurseNow.Controllers
                     location = nurseProfile.Location,
                     address = nurseProfile.Address,
                     bio = nurseProfile.Bio,
+                    naionalId = nurseProfile.NationalId,
                     profileImageUrl = nurseProfile.ProfileImagePath != null
                         ? $"{baseUrl}/{nurseProfile.ProfileImagePath}"
                         : null
@@ -202,7 +203,8 @@ namespace NurseNow.Controllers
                 phoneNumber = nurseProfile.PhoneNumber,
                 location = nurseProfile.Location,
                 address = nurseProfile.Address,
-                bio = nurseProfile.Bio
+                bio = nurseProfile.Bio,
+                nationalId = nurseProfile.NationalId,
             });
         }
 
