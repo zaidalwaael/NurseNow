@@ -18,7 +18,7 @@ namespace NurseNow.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<PatientProfile> PatientProfiles { get; set; }
         public DbSet<NurseNow.Models.Review> Reviews { get; set; }
-
+        public DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)

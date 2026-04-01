@@ -6,7 +6,7 @@
 
         public string NurseId { get; set; }
 
-        public string DayOfWeek { get; set; }  // Monday, Tuesday, ...
+        public string DayOfWeek { get; set; } = ""; // Monday, Tuesday, ...
 
         public TimeSpan StartTime { get; set; }
 

@@ -442,6 +442,14 @@ namespace NurseNow.Controllers
                 CreatedAt = DateTime.UtcNow
             });
 
+            _context.AdminActivityLogs.Add(new AdminActivityLog
+            {
+                Title = "New service request submitted",
+                Description = $"A new booking request was submitted by patient ID {booking.PatientId}.",
+                ActivityType = "Booking",
+                CreatedAt = DateTime.UtcNow
+            });
+
             await _context.SaveChangesAsync();
 
             return Ok(new

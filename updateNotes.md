@@ -1,890 +1,411 @@
-﻿# Patient Profile / Onboarding Section Documentation
+﻿# Admin Dashboard APIs Documentation
 
 ## Overview
-This document explains the backend work added for the **Patient additional information screens** after account creation.
+This document explains the backend APIs implemented for the **Admin Dashboard**.
 
-The goal is to support the following onboarding steps for the patient:
-
-- Step 1: Account creation
-- Step 2: Personal Info
-- Step 3: Address (**optional**)
-- Step 4: Medical Info
-
----
-
-# 1) Why PatientProfile was added
-
-Instead of storing all patient extra data directly inside `ApplicationUser`, a separate `PatientProfile` model was added.
-
-## Benefits
-- keeps user authentication data separate from profile data
-- makes patient data more organized
-- easier to extend later
-- supports onboarding screens cleanly
+The dashboard currently includes:
+- summary cards
+- request status distribution chart
+- weekly activity chart
+- recent activity list
 
 ---
 
-# 2) PatientProfile Model
+# 1) Dashboard Summary API
 
-## File
-`Models/PatientProfile.cs`
-
-## Structure
-```csharp
-namespace NurseNow.Models
-{
-    public class PatientProfile
-    {
-        public int PatientProfileId { get; set; }
-
-        public string UserId { get; set; }
-
-        public string? Gender { get; set; }
-
-        public DateTime? DateOfBirth { get; set; }
-
-        public string? BloodType { get; set; }
-
-        public string? Governorate { get; set; }
-
-        public string? Area { get; set; }
-
-        public string? Address { get; set; }
-
-        public string? Conditions { get; set; }
-
-        public string? Allergies { get; set; }
-
-        public string? Notes { get; set; }
-
-        public ApplicationUser User { get; set; }
-    }
-}
-```
-
----
-
-# 3) ApplicationDbContext Setup
-
-## File
-`Data/ApplicationDbContext.cs`
-
-## DbSet
-```csharp
-public DbSet<PatientProfile> PatientProfiles { get; set; }
-```
-
-## Relationship
-```csharp
-builder.Entity<PatientProfile>()
-    .HasOne(p => p.User)
-    .WithMany()
-    .HasForeignKey(p => p.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
-```
-
----
-
-# 4) Register Flow Update
-
-## File
-`Controllers/AuthController.cs`
-
-When a new user registers as `Patient`, the backend now creates an empty `PatientProfile`.
-
-## Logic
-```csharp
-else if (model.Role == "Patient")
-{
-    var patientProfile = new PatientProfile
-    {
-        UserId = user.Id
-    };
-
-    _context.PatientProfiles.Add(patientProfile);
-}
-
-await _context.SaveChangesAsync();
-```
-
-## Result
-Every patient account now has a related profile record ready for onboarding updates.
-
----
-
-# 5) DTOs Added
-
-## A) Personal Info DTO
-### File
-`DTOs/UpdatePatientPersonalInfoDto.cs`
-
-```csharp
-namespace NurseNow.DTOs
-{
-    public class UpdatePatientPersonalInfoDto
-    {
-        public string? Gender { get; set; }
-        public DateTime? DateOfBirth { get; set; }
-        public string? BloodType { get; set; }
-    }
-}
-```
-
----
-
-## B) Address DTO
-### File
-`DTOs/UpdatePatientAddressDto.cs`
-
-```csharp
-namespace NurseNow.DTOs
-{
-    public class UpdatePatientAddressDto
-    {
-        public string? Governorate { get; set; }
-        public string? Area { get; set; }
-        public string? Address { get; set; }
-    }
-}
-```
-
----
-
-## C) Medical Info DTO
-### File
-`DTOs/UpdatePatientMedicalInfoDto.cs`
-
-```csharp
-namespace NurseNow.DTOs
-{
-    public class UpdatePatientMedicalInfoDto
-    {
-        public string? Conditions { get; set; }
-        public string? Allergies { get; set; }
-        public string? Notes { get; set; }
-    }
-}
-```
-
----
-
-# 6) PatientProfileController
-
-## File
-`Controllers/PatientProfileController.cs`
-
-This controller was added to manage patient onboarding/profile data.
-
----
-
-# 7) Endpoints
-
-## A) Get full patient profile
+## Endpoint
 ```http
-GET /api/patientprofile
+GET /api/admin/dashboard-summary
 ```
 
 ## Purpose
-Returns all patient profile data.
+Returns the top summary cards data for the admin dashboard.
+
+## Returned Data
+- `totalPatients`
+- `totalNurses`
+- `pendingVerifications`
+- `todaysRequests`
 
 ## Response Example
 ```json
 {
-  "fullName": "Ali Mohammed",
-  "email": "ali@gmail.com",
-  "gender": "Male",
-  "dateOfBirth": "2001-05-10T00:00:00",
-  "bloodType": "A+",
-  "governorate": "Amman",
-  "area": "Abdali",
-  "address": "Street 10, Building 5",
-  "conditions": "Diabetes",
-  "allergies": "Penicillin",
-  "notes": "Needs regular monitoring"
+  "totalPatients": 2847,
+  "totalNurses": 456,
+  "pendingVerifications": 23,
+  "todaysRequests": 87
 }
 ```
+
+## Logic
+- `totalPatients` is calculated from users with role type `Patient`
+- `totalNurses` is calculated from approved nurse profiles
+- `pendingVerifications` is calculated from nurse profiles with status `Pending`
+- `todaysRequests` is calculated from bookings with today's booking date
 
 ---
 
-## B) Update Personal Info
+# 2) Request Status Distribution API
+
+## Endpoint
 ```http
-PUT /api/patientprofile/personal-info
-```
-
-## Used for
-Step 2: Personal Info
-
-## Request Example
-```json
-{
-  "gender": "Male",
-  "dateOfBirth": "2001-05-10",
-  "bloodType": "A+"
-}
+GET /api/admin/request-status-distribution
 ```
 
 ## Purpose
-Updates:
-- gender
-- date of birth
-- blood type
+Returns the number and percentage of bookings grouped by status.
+
+## Example Statuses
+- Pending
+- Accepted
+- Completed
+- Cancelled
+- Rejected
+
+## Response Example
+```json
+[
+  {
+    "status": "Completed",
+    "count": 57,
+    "percentage": 57.0
+  },
+  {
+    "status": "Accepted",
+    "count": 21,
+    "percentage": 21.0
+  },
+  {
+    "status": "Pending",
+    "count": 17,
+    "percentage": 17.0
+  },
+  {
+    "status": "Cancelled",
+    "count": 5,
+    "percentage": 5.0
+  }
+]
+```
+
+## Logic
+- bookings are grouped by `Status`
+- each group returns:
+  - count
+  - percentage relative to total bookings
 
 ---
 
-## C) Update Address
+# 3) Weekly Activity API
+
+## Endpoint
 ```http
-PUT /api/patientprofile/address
-```
-
-## Used for
-Step 3: Address
-
-## Request Example
-```json
-{
-  "governorate": "Amman",
-  "area": "Abdali",
-  "address": "Street 10, Building 5"
-}
+GET /api/admin/weekly-activity
 ```
 
 ## Purpose
-Updates:
-- governorate
-- area
-- address
+Returns booking activity for the last 7 days.
 
----
+## Returned Data
+For each day:
+- `day`
+- `date`
+- `requests`
+- `completed`
 
-## D) Update Medical Info
-```http
-PUT /api/patientprofile/medical-info
-```
-
-## Used for
-Step 4: Medical Info
-
-## Request Example
+## Response Example
 ```json
-{
-  "conditions": "Diabetes",
-  "allergies": "Penicillin",
-  "notes": "Needs regular monitoring"
-}
+[
+  {
+    "day": "Mon",
+    "date": "2026-04-01",
+    "requests": 65,
+    "completed": 52
+  },
+  {
+    "day": "Tue",
+    "date": "2026-04-02",
+    "requests": 78,
+    "completed": 68
+  }
+]
 ```
 
-## Purpose
-Updates:
-- conditions
-- allergies
-- notes
+## Logic
+- `requests` = total bookings for that day
+- `completed` = bookings for that day with status `Completed`
+
+## Note
+This implementation uses `BookingDate` as the activity date source.
 
 ---
 
-# 8) Optional Step 3
-
-Step 3 (Address) was intentionally designed as **optional**.
-
-## Why?
-Because all related fields in `PatientProfile` are nullable:
-
-- `Governorate`
-- `Area`
-- `Address`
-
-This means:
-- the user can skip Step 3
-- the backend will not fail
-- no required validation is needed for address at this stage
-
----
-
-# 9) Migration
-
-After adding `PatientProfile` and updating the context:
-
-```powershell
-Add-Migration AddPatientProfile
-Update-Database
-```
-
----
-
-# 10) Final Flow
-
-## Step 1
-Patient registers account
-
-## Step 2
-Patient updates personal info
-
-## Step 3
-Patient may optionally update address
-
-## Step 4
-Patient updates medical info
-
----
-
-# 11) Summary of What Was Added
-
-## Completed
-- PatientProfile model
-- PatientProfiles DbSet
-- PatientProfile relationship
-- automatic PatientProfile creation on patient registration
-- DTOs for personal info, address, and medical info
-- PatientProfileController
-- full patient profile endpoint
-- personal info update endpoint
-- address update endpoint
-- medical info update endpoint
-- optional address step support
-
----
-
-# 12) Notes
-
-## Step 3 is optional
-No backend validation forces the patient to complete address information.
-
-## Better structure
-Patient extra information is kept separate from authentication data.
-
-## Future improvements
-Later, governorate and area can be served from fixed dropdown APIs if needed.
-*9*************************************************************************************************************************
-# Rating and Reviews System Documentation
-
-## Overview
-This document explains the backend work implemented for the **Rating and Reviews System** in the project.
-
-The goal of this feature is:
-- allow the patient to rate the nurse after a completed appointment
-- allow the patient to write an optional review comment
-- allow the patient to dismiss the rating prompt permanently using `X`
-- allow the patient to postpone the rating prompt using `Later`
-- show average rating and reviews count in nurse profile and browse nurses
-- show reviews list inside nurse profile
-
----
-
-# 1) Review Flow
-
-The review flow works only after the booking status becomes:
-
-```text
-Completed
-```
-
-After that, the patient may see a rating prompt.
-
-The patient has 3 choices:
-
-## A) Submit review
-- selects rating
-- optionally writes comment
-- submits review
-- prompt never appears again for that booking
-
-## B) Dismiss using X
-- prompt is hidden permanently for that booking
-- no review is submitted
-
-## C) Press Later
-- prompt is hidden temporarily
-- it can appear again later
-
----
-
-# 2) Review Model
+# 4) Recent Activity Log Model
 
 ## File
-`Models/Review.cs`
+`Models/AdminActivityLog.cs`
 
 ## Structure
 ```csharp
 namespace NurseNow.Models
 {
-    public class Review
+    public class AdminActivityLog
     {
-        public int ReviewId { get; set; }
+        public int AdminActivityLogId { get; set; }
 
-        public int BookingId { get; set; }
+        public string Title { get; set; }
 
-        public string PatientId { get; set; }
+        public string? Description { get; set; }
 
-        public string NurseId { get; set; }
-
-        public int Rating { get; set; }
-
-        public string? Comment { get; set; }
+        public string ActivityType { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public Booking Booking { get; set; }
-
-        public ApplicationUser Patient { get; set; }
-
-        public ApplicationUser Nurse { get; set; }
     }
 }
 ```
 
----
-
-# 3) Booking Model Updates
-
-## File
-`Models/Booking.cs`
-
-The following fields were added:
-
-```csharp
-public bool IsReviewSubmitted { get; set; } = false;
-
-public bool IsReviewDismissed { get; set; } = false;
-
-public DateTime? ReviewRemindLaterAt { get; set; }
-```
-
 ## Purpose
-- `IsReviewSubmitted`: review already submitted
-- `IsReviewDismissed`: prompt was closed permanently
-- `ReviewRemindLaterAt`: reminder postponed until a future time
+Stores recent admin-related activity that can be displayed in the dashboard.
 
 ---
 
-# 4) ApplicationDbContext Setup
+# 5) ApplicationDbContext Update
 
 ## File
 `Data/ApplicationDbContext.cs`
 
 ## DbSet
 ```csharp
-public DbSet<Review> Reviews { get; set; }
+public DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
 ```
 
-## Relationships
-```csharp
-builder.Entity<Review>()
-    .HasOne(r => r.Booking)
-    .WithMany()
-    .HasForeignKey(r => r.BookingId)
-    .OnDelete(DeleteBehavior.Restrict);
-
-builder.Entity<Review>()
-    .HasOne(r => r.Patient)
-    .WithMany()
-    .HasForeignKey(r => r.PatientId)
-    .OnDelete(DeleteBehavior.Restrict);
-
-builder.Entity<Review>()
-    .HasOne(r => r.Nurse)
-    .WithMany()
-    .HasForeignKey(r => r.NurseId)
-    .OnDelete(DeleteBehavior.Restrict);
-```
+## Note
+No relationship configuration is required for the current version because the model is independent.
 
 ---
 
-# 5) Migration
+# 6) Recent Activity API
 
-After adding the review model and booking fields:
+## Endpoint
+```http
+GET /api/admin/recent-activity
+```
+
+## Optional Query Parameter
+```http
+?limit=5
+```
+
+## Purpose
+Returns the most recent activity items for the admin dashboard.
+
+## Response Example
+```json
+[
+  {
+    "activityId": 1,
+    "title": "Nurse verification approved",
+    "description": "Sarah Hassan verification was updated to Approved.",
+    "activityType": "Verification",
+    "createdAt": "2026-04-01T10:30:00Z"
+  },
+  {
+    "activityId": 2,
+    "title": "New service request submitted",
+    "description": "A new booking request was submitted by patient ID abc123.",
+    "activityType": "Booking",
+    "createdAt": "2026-04-01T10:10:00Z"
+  },
+  {
+    "activityId": 3,
+    "title": "New nurse registration",
+    "description": "Layla Ahmed registered as a nurse.",
+    "activityType": "Registration",
+    "createdAt": "2026-04-01T09:50:00Z"
+  }
+]
+```
+
+## Logic
+- recent activity items are sorted by `CreatedAt` descending
+- `limit` controls the number of returned records
+- default limit = 5
+
+---
+
+# 7) Where Recent Activity Logs Are Created
+
+## A) AuthController
+When a new nurse registers:
+- activity title: `New nurse registration`
+- activity type: `Registration`
+
+## B) AdminController
+When admin approves or rejects nurse verification:
+- activity title:
+  - `Nurse verification approved`
+  - `Nurse verification rejected`
+- activity type: `Verification`
+
+## C) PatientController
+When a patient submits a new booking request:
+- activity title: `New service request submitted`
+- activity type: `Booking`
+
+---
+
+# 8) Migration
+
+After adding `AdminActivityLog`:
 
 ```powershell
-Add-Migration AddReviewsAndBookingReviewFlags
+Add-Migration AddAdminActivityLog
 Update-Database
 ```
 
 ---
 
-# 6) Submit Review DTO
+# 9) Full Admin Dashboard Backend Coverage
 
-## File
-`DTOs/SubmitReviewDto.cs`
+The admin dashboard now has backend support for:
 
-```csharp
-namespace NurseNow.DTOs
-{
-    public class SubmitReviewDto
-    {
-        public int BookingId { get; set; }
-
-        public int Rating { get; set; }
-
-        public string? Comment { get; set; }
-    }
-}
-```
-
----
-
-# 7) ReviewController
-
-## File
-`Controllers/ReviewController.cs`
-
-This controller was added to manage review actions for patients.
-
----
-
-# 8) Review Endpoints
-
-## A) Submit Review
+## Cards
 ```http
-POST /api/review
+GET /api/admin/dashboard-summary
 ```
 
-## Request Example
-```json
-{
-  "bookingId": 15,
-  "rating": 5,
-  "comment": "Very professional nurse"
-}
-```
-
-## Rules
-- patient must own the booking
-- booking must be `Completed`
-- rating must be between 1 and 5
-- booking must not already have submitted review
-- booking must not be dismissed
-
-## Result
-- review is saved
-- `IsReviewSubmitted = true`
-- `ReviewRemindLaterAt = null`
-
----
-
-## B) Dismiss Review Prompt
+## Pie Chart
 ```http
-PUT /api/review/{bookingId}/dismiss
+GET /api/admin/request-status-distribution
 ```
 
-## Purpose
-Used when patient presses `X`.
-
-## Result
-- `IsReviewDismissed = true`
-- `ReviewRemindLaterAt = null`
-- prompt will never appear again for this booking
-
----
-
-## C) Remind Later
+## Line Chart
 ```http
-PUT /api/review/{bookingId}/later
+GET /api/admin/weekly-activity
 ```
 
-## Purpose
-Used when patient presses `Later`.
-
-## Result
-- `ReviewRemindLaterAt = DateTime.UtcNow.AddDays(1)`
-- prompt is postponed temporarily
-
----
-
-## D) Get Pending Review Prompt
+## Recent Activity
 ```http
-GET /api/review/pending
-```
-
-## Purpose
-Returns one completed booking that still needs a review prompt.
-
-## Conditions
-The booking is returned only if:
-- status = `Completed`
-- `IsReviewSubmitted = false`
-- `IsReviewDismissed = false`
-- `ReviewRemindLaterAt` is null or expired
-
-## Example Response
-```json
-{
-  "bookingId": 15,
-  "nurseId": "nurse-user-id",
-  "nurseName": "Sarah Hassan",
-  "serviceName": "IV Therapy",
-  "date": "2026-03-29",
-  "time": "10:00"
-}
-```
-
-## If no booking needs review
-The endpoint returns:
-```json
-null
+GET /api/admin/recent-activity
 ```
 
 ---
 
-# 9) Nurse Reviews Endpoint
+# 10) Notes
 
-## File
-`PatientController.cs`
+## Recent Activity Scope
+The first version of recent activity focuses on:
+- nurse registration
+- nurse verification updates
+- new booking requests
 
-## Endpoint
-```http
-GET /api/patient/nurses/{nurseId}/reviews
-```
+This is enough to support the current dashboard design.
 
-## Purpose
-Returns the nurse reviews page data.
-
-## Returned Data
-- `averageRating`
-- `reviewsCount`
-- `reviews`
-
-## Example Response
-```json
-{
-  "averageRating": 4.7,
-  "reviewsCount": 3,
-  "reviews": [
-    {
-      "reviewId": 1,
-      "patientName": "Ali Mohammed",
-      "rating": 5,
-      "comment": "Very professional nurse",
-      "createdAt": "2026-03-29T10:30:00Z"
-    },
-    {
-      "reviewId": 2,
-      "patientName": "Ahmad Saleh",
-      "rating": 4,
-      "comment": "Good service",
-      "createdAt": "2026-03-28T09:00:00Z"
-    }
-  ]
-}
-```
+## Future Enhancements
+Later, more activity types can be added, such as:
+- complaint resolved
+- pricing updates
+- admin management changes
+- service updates
+- payment events
 
 ---
 
-# 10) Nurse Details Endpoint Update
+# 11) Final Result
 
-## File
-`PatientController.cs`
+The admin dashboard backend now supports:
+- key summary statistics
+- status analytics
+- weekly booking activity
+- recent activity feed
 
-## Endpoint
-```http
-GET /api/patient/nurses/{nurseId}
-```
+This makes the dashboard ready for frontend integration and real data display.
 
-This endpoint was updated to return real:
-- `rating`
-- `reviewsCount`
 
-instead of placeholder values.
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-## Current Logic
-- `rating` = average of all review ratings for the nurse
-- `reviewsCount` = total number of reviews for the nurse
-
----
-
-# 11) Browse Nurses Endpoint Update
-
-## File
-`PatientController.cs`
-
-## Endpoint
-```http
-GET /api/patient/nurses/browse
-```
-
-This endpoint was updated to return real:
-- `rating`
-- `reviewsCount`
-
-for each nurse in the list.
-
-## Current Logic
-- average rating is calculated from `Reviews`
-- total reviews count is calculated from `Reviews`
-
----
-
-# 12) Rules Summary
-
-## Patient can submit review only if:
-- booking belongs to that patient
-- booking status is `Completed`
-- rating is between 1 and 5
-- review not submitted before
-- review not dismissed before
-
-## If patient presses X
-- prompt disappears permanently
-
-## If patient presses Later
-- prompt is hidden temporarily
-
----
-
-# 13) Flutter Usage
-
-## Show review popup
-Call:
-```http
-GET /api/review/pending
-```
-
-### If response is null
-- do not show popup
-
-### If response contains booking
-- show rating popup
-
----
-
-## Submit review
-Call:
-```http
-POST /api/review
-```
-
----
-
-## Dismiss permanently
-Call:
-```http
-PUT /api/review/{bookingId}/dismiss
-```
-
----
-
-## Remind later
-Call:
-```http
-PUT /api/review/{bookingId}/later
-```
-
----
-
-## Load nurse reviews page
-Call:
-```http
-GET /api/patient/nurses/{nurseId}/reviews
-```
-
----
-
-# 14) What Was Implemented
-
-## Completed
-- Review model
-- review fields inside booking
-- review relationships in DbContext
-- review migration
-- submit review DTO
-- ReviewController
-- submit review endpoint
-- dismiss review endpoint
-- remind later endpoint
-- pending review endpoint
-- nurse reviews endpoint
-- real average rating in nurse details
-- real average rating in browse nurses
-- real reviews count in nurse details
-- real reviews count in browse nurses
-
----
-
-# 15) Final Note
-
-The rating system is now fully integrated with:
-- completed bookings
-- patient review actions
-- nurse profile ratings
-- nurse reviews list
-- browse nurses rating display
-
-This makes the rating and review flow part of the actual booking lifecycle.
-*************************************************************************************
-# Patient Dashboard API Documentation
+# Nurse Verification APIs Documentation
 
 ## Overview
-This section explains the APIs used to build the **Patient Dashboard**.
+This document explains the backend APIs implemented for the **Nurse Verification** section in the Admin Website.
 
-The dashboard includes:
-- Total Bookings
-- Active Requests
-- Upcoming Appointments (limited number)
+The goal of this section is to allow the admin to:
+- view all nurse accounts
+- filter nurses by verification status
+- search nurses by name or email
+- view full nurse details
+- approve or reject nurse verification
+- trigger notifications and activity logs
 
 ---
 
-# 1) Dashboard Summary Endpoint
+# 1) Verification Status
+
+The nurse verification process uses:
+
+- `Pending`
+- `Approved`
+- `Rejected`
+
+## Meaning
+
+### Pending
+The nurse has registered but has not been reviewed yet.
+
+### Approved
+The nurse has been verified and can start receiving bookings.
+
+### Rejected
+The nurse was rejected and cannot operate as a nurse.
+
+---
+
+# 2) Get All Nurses API
 
 ## Endpoint
 ```http
-GET /api/patient/dashboard-summary
+GET /api/admin/nurses
 ```
 
 ## Purpose
-Returns quick statistics for the dashboard.
+Returns all nurses for the verification table.
 
-## Response
-```json
-{
-  "totalBookings": 12,
-  "activeRequests": 3
-}
-```
+## Supported Query Parameters
 
-## Fields Explanation
+### search
+Search by:
+- full name
+- email
 
-### totalBookings
-Total number of bookings created by the patient.
-
-### activeRequests
-Bookings that are still active:
-- Pending
-- Accepted
-- Active
+### status
+Filter by:
+- `Pending`
+- `Approved`
+- `Rejected`
+- `All`
 
 ---
 
-# 2) Appointments Endpoint (Updated)
+# 3) Example Requests
 
-## Endpoint
+## Get all nurses
 ```http
-GET /api/patient/appointments
+GET /api/admin/nurses
 ```
 
-## Query Parameters
-
-### tab
-حدد نوع البيانات:
-- `upcoming`
-- `past`
-
-### limit (optional)
-عدد النتائج التي تريد إرجاعها (مفيد للداش بورد)
-
----
-
-# 3) Usage Examples
-
-## Get all upcoming appointments
+## Filter pending nurses
 ```http
-GET /api/patient/appointments?tab=upcoming
+GET /api/admin/nurses?status=Pending
 ```
 
-## Get only 2 upcoming appointments (Dashboard)
+## Search by name
 ```http
-GET /api/patient/appointments?tab=upcoming&limit=2
+GET /api/admin/nurses?search=sarah
 ```
 
-## Get only 3 upcoming appointments
+## Search + filter
 ```http
-GET /api/patient/appointments?tab=upcoming&limit=3
+GET /api/admin/nurses?search=sarah&status=Approved
 ```
 
 ---
@@ -894,60 +415,618 @@ GET /api/patient/appointments?tab=upcoming&limit=3
 ```json
 [
   {
-    "bookingId": 15,
-    "nurseName": "Sarah Hassan",
-    "profileImageUrl": "https://api.com/uploads/image.jpg",
-    "serviceName": "IV Therapy",
-    "date": "2026-03-29",
-    "time": "14:00",
-    "address": "Amman",
-    "totalPrice": 25,
-    "status": "Accepted"
+    "nurseId": "user-id-1",
+    "name": "Sarah Hassan",
+    "email": "sarah@email.com",
+    "phone": "0791234567",
+    "registrationDate": "2026-03-01T00:00:00",
+    "status": "Pending"
   }
 ]
 ```
 
 ---
 
-# 5) Dashboard Flow
+# 5) Get Nurse Details API
 
-## Step 1: Load Summary
+## Endpoint
 ```http
-GET /api/patient/dashboard-summary
+GET /api/admin/nurse-details/{userId}
 ```
 
-## Step 2: Load Upcoming Appointments (Limited)
+## Purpose
+Returns full nurse profile details for review.
+
+---
+
+# 6) Verify Nurse API
+
+## Endpoint
 ```http
-GET /api/patient/appointments?tab=upcoming&limit=2
+PUT /api/admin/verify-nurse/{userId}
+```
+
+## Request Body
+
+```json
+{
+  "status": "Approved"
+}
+```
+
+or
+
+```json
+{
+  "status": "Rejected"
+}
 ```
 
 ---
 
-# 6) Notes
+# 7) Validation Logic
 
-- `limit` is optional and used only for UI optimization.
-- Sorting is done by:
-  - BookingDate
-  - StartTime
-- Same endpoint is reused for:
-  - Dashboard
-  - Full appointments page
+Before approving a nurse, the system checks that the profile is complete.
 
 ---
 
-# 7) What Was Implemented
+# 8) Notifications
 
-- Dashboard summary endpoint
-- Active requests calculation
-- Total bookings calculation
-- Limit support in appointments endpoint
-- Reuse of existing endpoint instead of duplication
+When verification status changes:
+
+- Approved â Account Approved
+- Rejected â Account Rejected
 
 ---
 
-# 8) Final Result
+# 9) Activity Log
 
-The dashboard is now:
-- Efficient
-- Clean (no duplicated endpoints)
-- Flexible for frontend usage
+Each verification action creates an admin activity log.
+
+---
+
+# 10) Final Result
+
+The Nurse Verification backend now supports:
+- listing nurses
+- searching
+- filtering
+- viewing details
+- approving/rejecting
+- notifications
+- activity logging
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+# Users Management APIs Documentation
+
+## Overview
+This document explains the backend APIs and model updates implemented for the **Users Management** section in the Admin Website.
+
+The goal of this section is to allow the admin to:
+- view users by role
+- search users by name or email
+- filter users by account status
+- suspend user accounts
+- reactivate suspended user accounts
+
+The Users Management section is based on:
+- `RoleType`
+- `AccountStatus`
+
+---
+
+# 1) Important Concept
+
+## RoleType
+Used to distinguish the user type:
+- `Patient`
+- `Nurse`
+
+## AccountStatus
+Used to control whether the account is active or suspended:
+- `Active`
+- `Suspended`
+
+### Note
+`AccountStatus` is different from nurse `VerificationStatus`.
+
+#### VerificationStatus
+Used only for nurse verification workflow:
+- `Pending`
+- `Approved`
+- `Rejected`
+
+#### AccountStatus
+Used for the account itself:
+- `Active`
+- `Suspended`
+
+---
+
+# 2) ApplicationUser Update
+
+## File
+`Models/ApplicationUser.cs`
+
+The following fields were added:
+
+```csharp
+public string AccountStatus { get; set; } = "Active";
+
+public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+```
+
+## Purpose
+- `AccountStatus` stores whether the account is active or suspended
+- `CreatedAt` stores the account creation date for join date display and sorting
+
+---
+
+# 3) Migration
+
+After updating `ApplicationUser`:
+
+```powershell
+Add-Migration AddAccountStatus
+Update-Database
+```
+
+---
+
+# 4) Get Users API
+
+## Endpoint
+```http
+GET /api/admin/users
+```
+
+## Purpose
+Returns users for the Users Management table.
+
+## Supported Query Parameters
+
+### role
+Filter by role:
+- `Patient`
+- `Nurse`
+- `All`
+
+### search
+Search by:
+- full name
+- email
+
+### status
+Filter by account status:
+- `Active`
+- `Suspended`
+- `All`
+
+---
+
+# 5) Example Requests
+
+## Get all patients
+```http
+GET /api/admin/users?role=Patient
+```
+
+## Get all nurses
+```http
+GET /api/admin/users?role=Nurse
+```
+
+## Get active patients
+```http
+GET /api/admin/users?role=Patient&status=Active
+```
+
+## Get suspended nurses
+```http
+GET /api/admin/users?role=Nurse&status=Suspended
+```
+
+## Search by name
+```http
+GET /api/admin/users?search=john
+```
+
+## Search + role + status
+```http
+GET /api/admin/users?role=Patient&status=Active&search=john
+```
+
+---
+
+# 6) Get Users Response Example
+
+```json
+[
+  {
+    "id": "user-id-1",
+    "name": "John Doe",
+    "email": "john.doe@email.com",
+    "phone": "0791112222",
+    "joinDate": "2026-01-15T00:00:00",
+    "status": "Active",
+    "role": "Patient"
+  },
+  {
+    "id": "user-id-2",
+    "name": "Jane Smith",
+    "email": "jane.smith@email.com",
+    "phone": "0792223333",
+    "joinDate": "2026-01-20T00:00:00",
+    "status": "Suspended",
+    "role": "Patient"
+  }
+]
+```
+
+## Returned Fields
+- `id`
+- `name`
+- `email`
+- `phone`
+- `joinDate`
+- `status`
+- `role`
+
+---
+
+# 7) Update User Status API
+
+## Endpoint
+```http
+PUT /api/admin/users/{userId}/status
+```
+
+## Purpose
+Allows the admin to:
+- suspend a user account
+- activate a suspended account
+
+---
+
+# 8) Request Body Example
+
+## Suspend
+```json
+{
+  "status": "Suspended"
+}
+```
+
+## Activate
+```json
+{
+  "status": "Active"
+}
+```
+
+---
+
+# 9) Response Example
+
+```json
+{
+  "message": "User status updated to Suspended"
+}
+```
+
+---
+
+# 10) DTO
+
+## File
+`DTOs/UpdateUserStatusDto.cs`
+
+```csharp
+namespace NurseNow.DTOs
+{
+    public class UpdateUserStatusDto
+    {
+        public string Status { get; set; }
+    }
+}
+```
+
+---
+
+# 11) Login Protection Update
+
+## File
+`Controllers/AuthController.cs`
+
+The login logic should check `AccountStatus`.
+
+## Added Logic
+```csharp
+if (user.AccountStatus == "Suspended")
+    return Unauthorized("Your account is suspended");
+```
+
+## Result
+Suspended users cannot log in.
+
+---
+
+# 12) UI Mapping
+
+The Users Management screen uses:
+
+## Tabs
+- Patients
+- Nurses
+
+These map to:
+- `role=Patient`
+- `role=Nurse`
+
+## Search
+Maps to:
+- `search`
+
+## Filter
+Maps to:
+- `status=Active`
+- `status=Suspended`
+
+## Actions
+- View
+- Suspend
+- Activate
+
+---
+
+# 13) Business Logic Summary
+
+## Active
+User account is allowed to log in and use the system normally.
+
+## Suspended
+User account is blocked and cannot log in.
+
+## Important Difference
+A nurse may be:
+- `VerificationStatus = Approved`
+- but still `AccountStatus = Suspended`
+
+That means:
+- the nurse was approved before
+- but later suspended by admin
+
+---
+
+# 14) What Was Implemented
+
+## Completed
+- `AccountStatus` field in `ApplicationUser`
+- `CreatedAt` field in `ApplicationUser`
+- migration for user status
+- users list API with role filter
+- users list API with status filter
+- users list API with search
+- update user status API
+- DTO for status update
+- login protection for suspended accounts
+
+---
+
+# 15) Final Result
+
+The Users Management backend now supports:
+- viewing users by role
+- filtering by account status
+- searching by name or email
+- suspending accounts
+- reactivating accounts
+- preventing suspended users from logging in
+
+This makes the Users Management section ready for frontend integration.
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Service Requests Management (Admin) — API Documentation
+
+## Overview
+This module enables Admins to manage service requests (bookings):
+- List & filter requests
+- Search by patient name
+- View request details
+- Assign a nurse
+- Cancel a request
+- Send notifications
+- Log admin activities
+
+---
+
+## Statuses Used
+- Pending
+- Assigned
+- Completed
+- Cancelled
+
+> Note: Other modules may use (Accepted, Active, Rejected). Consider unifying later.
+
+---
+
+## Endpoints
+
+### 1) Get Service Requests
+**GET** `/api/admin/service-requests`
+
+**Query Params**
+- `search` (string, optional): patient name
+- `status` (string, optional): Pending | Assigned | Completed | Cancelled | All
+
+**Response**
+```json
+[
+  {
+    "requestId": 15,
+    "patientName": "John Doe",
+    "assignedNurse": "Sarah Hassan",
+    "serviceType": "IV Therapy",
+    "date": "2026-04-01",
+    "time": "14:00",
+    "status": "Assigned"
+  }
+]
+```
+
+---
+
+### 2) Get Request Details
+**GET** `/api/admin/service-requests/{bookingId}`
+
+**Response**
+```json
+{
+  "bookingId": 15,
+  "patientName": "John Doe",
+  "nurseName": "Sarah Hassan",
+  "serviceType": "IV Therapy",
+  "date": "2026-04-01",
+  "time": "14:00",
+  "status": "Assigned",
+  "address": "Amman, Abdali",
+  "notes": "Post-surgery care"
+}
+```
+
+---
+
+### 3) Assign Nurse
+**PUT** `/api/admin/service-requests/{bookingId}/assign`
+
+**Body**
+```json
+{
+  "nurseId": "user-id"
+}
+```
+
+**Behavior**
+- Validate booking exists
+- Validate nurse exists and role is Nurse
+- Set:
+  - `NurseId`
+  - `Status = "Assigned"`
+- Create Notification to nurse
+- Create AdminActivityLog
+
+**Response**
+```json
+{ "message": "Nurse assigned successfully" }
+```
+
+---
+
+### 4) Cancel Request
+**PUT** `/api/admin/service-requests/{bookingId}/cancel`
+
+**Validation**
+- Cannot cancel if status is `Completed` or `Cancelled`
+
+**Behavior**
+- Set `Status = "Cancelled"`
+- Notify patient
+- Notify assigned nurse (if any)
+- Create AdminActivityLog
+
+**Response**
+```json
+{ "message": "Request cancelled" }
+```
+
+---
+
+## Notifications
+
+### Assign
+- Title: New Assigned Request
+- To: Nurse
+
+### Cancel
+- To Patient:
+  - Title: Service Request Cancelled
+- To Nurse (if assigned):
+  - Title: Assigned Request Cancelled
+
+---
+
+## Admin Activity Logs
+
+### Assign
+- Title: Nurse assigned to request
+
+### Cancel
+- Title: Service request cancelled
+
+---
+
+## Required Components
+
+### DTO
+`DTOs/AssignNurseDto.cs`
+```csharp
+public class AssignNurseDto
+{
+    public string NurseId { get; set; }
+}
+```
+
+### Models Required
+- Booking
+- Notification
+- AdminActivityLog
+
+### DbContext
+```csharp
+public DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
+```
+
+---
+
+## Where to Place Code
+
+### DTO
+```
+DTOs/AssignNurseDto.cs
+```
+
+### Controller Methods
+```
+Controllers/AdminController.cs
+```
+
+Group under:
+```csharp
+// Service Requests Management
+```
+
+---
+
+## UI Mapping
+
+| UI Action | Endpoint |
+|----------|--------|
+| Table load | GET /service-requests |
+| Search | ?search= |
+| Filter | ?status= |
+| View | GET /{id} |
+| Assign | PUT /assign |
+| Cancel | PUT /cancel |
+
+---
+
+## Final Result
+This module fully supports:
+- Admin control over requests
+- Real-time notifications
+- Activity tracking
+- Ready for frontend integration
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

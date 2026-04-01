@@ -55,6 +55,7 @@ namespace NurseNow.Controllers
                 return BadRequest(result.Errors);
 
             await _userManager.AddToRoleAsync(user, model.Role);
+
             if (model.Role == "Nurse")
             {
                 var nurseProfile = new NurseProfile
@@ -64,6 +65,14 @@ namespace NurseNow.Controllers
                 };
 
                 _context.NurseProfiles.Add(nurseProfile);
+
+                _context.AdminActivityLogs.Add(new AdminActivityLog
+                {
+                    Title = "New nurse registration",
+                    Description = $"{user.FullName} registered as a nurse.",
+                    ActivityType = "Registration",
+                    CreatedAt = DateTime.UtcNow
+                });
             }
             else if (model.Role == "Patient")
             {
@@ -76,6 +85,8 @@ namespace NurseNow.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+
             return Ok("User registered successfully");
         }
         [HttpPost("login")]
@@ -85,6 +96,9 @@ namespace NurseNow.Controllers
 
             if (user == null)
                 return Unauthorized("Invalid credentials");
+
+            if (user.AccountStatus == "Suspended")
+                return Unauthorized("Your account is suspended");
 
             var validPassword = await _userManager.CheckPasswordAsync(user, model.Password);
 
