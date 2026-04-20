@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
 import { User, Settings, LogOut } from "lucide-react";
 
 export function ProfileDropdown({ isOpen, onClose }) {
+  const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -23,25 +25,25 @@ export function ProfileDropdown({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleViewProfile = () => {
-    alert("View Profile - This will navigate to profile page");
+    navigate("/profile");
     onClose();
   };
 
   const handleEditProfile = () => {
-    alert("Edit Profile - This will open profile editor");
+    navigate("/profile/edit");
     onClose();
   };
 
   const handleAccountSettings = () => {
-    alert("Account Settings - This will navigate to settings page");
+    navigate("/settings");
     onClose();
   };
 
   const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
-      alert("Logout - This will clear session and redirect to login");
+      localStorage.removeItem("token")
+      localStorage.removeItem("adminUser")
+      navigate("/login");
       onClose();
-    }
   };
 
   return (

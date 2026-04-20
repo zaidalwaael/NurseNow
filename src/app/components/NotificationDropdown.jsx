@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { Bell, Check, CheckCheck, Eye } from "lucide-react";
 
 const mockNotifications = [
@@ -46,6 +47,7 @@ const mockNotifications = [
 
 export function NotificationDropdown({ isOpen, onClose }) {
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(mockNotifications);
 
   useEffect(() => {
@@ -70,12 +72,16 @@ export function NotificationDropdown({ isOpen, onClose }) {
 
   const markAsRead = (id) => {
     setNotifications((prev) =>
-      prev.map((notif) => (notif.id === id ? { ...notif, isRead: true } : notif))
+      prev.map((notif) =>
+        notif.id === id ? { ...notif, isRead: true } : notif,
+      ),
     );
   };
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((notif) => ({ ...notif, isRead: true })));
+    setNotifications((prev) =>
+      prev.map((notif) => ({ ...notif, isRead: true })),
+    );
   };
 
   const getTypeColor = (type) => {
@@ -98,7 +104,9 @@ export function NotificationDropdown({ isOpen, onClose }) {
         <div>
           <h3 className="text-gray-800">Notifications</h3>
           {unreadCount > 0 && (
-            <p className="text-xs text-gray-500 mt-1">{unreadCount} unread notification(s)</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {unreadCount} unread notification(s)
+            </p>
           )}
         </div>
         {unreadCount > 0 && (
@@ -113,7 +121,7 @@ export function NotificationDropdown({ isOpen, onClose }) {
       </div>
 
       {/* Notifications List */}
-      <div className="max-h-96 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto smooth-scrollbar">
         {notifications.map((notification) => (
           <div
             key={notification.id}
@@ -122,19 +130,27 @@ export function NotificationDropdown({ isOpen, onClose }) {
             }`}
           >
             <div className="flex items-start gap-3">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getTypeColor(notification.type)}`}>
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${getTypeColor(notification.type)}`}
+              >
                 <Bell className="w-4 h-4" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <h4 className="text-sm text-gray-800">{notification.title}</h4>
+                  <h4 className="text-sm text-gray-800">
+                    {notification.title}
+                  </h4>
                   {!notification.isRead && (
                     <div className="w-2 h-2 bg-[#1F7A8C] rounded-full flex-shrink-0 mt-1"></div>
                   )}
                 </div>
-                <p className="text-xs text-gray-600 mt-1">{notification.description}</p>
-                <p className="text-xs text-gray-500 mt-2">{notification.timestamp}</p>
+                <p className="text-xs text-gray-600 mt-1">
+                  {notification.description}
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {notification.timestamp}
+                </p>
 
                 {!notification.isRead && (
                   <button
@@ -153,7 +169,13 @@ export function NotificationDropdown({ isOpen, onClose }) {
 
       {/* Footer */}
       <div className="p-3 border-t border-gray-200 text-center">
-        <button className="text-sm text-[#1F7A8C] hover:text-[#18626F] transition-colors flex items-center justify-center gap-1 w-full">
+        <button
+          onClick={() => {
+            navigate("/notifications/all");
+            onClose();
+          }}
+          className="text-sm text-[#1F7A8C] hover:text-[#18626F] transition-colors flex items-center justify-center gap-1 w-full"
+        >
           <Eye className="w-4 h-4" />
           View all notifications
         </button>

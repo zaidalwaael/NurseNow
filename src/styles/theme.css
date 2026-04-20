@@ -178,4 +178,36 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+
+  .smooth-scrollbar,
+  .sidebar-scrollbar {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #1F7A8C #E5E7EB;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar,
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-track,
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: #E5E7EB;
+    border-radius: 9999px;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb,
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: #1F7A8C;
+    border-radius: 9999px;
+    border: 3px solid #E5E7EB;
+    background-clip: padding-box;
+  }
+
+  .smooth-scrollbar::-webkit-scrollbar-thumb:hover,
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #18626F;
+  }
 }

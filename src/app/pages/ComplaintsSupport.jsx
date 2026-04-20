@@ -1,82 +1,147 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Eye, MessageSquare, CheckCircle } from "lucide-react";
-
-
-  id;
-  submittedBy;
-  userType"Patient" | "Nurse";
-  category;
-  subject;
-  description;
-  date;
-  status;
-}
-
-const mockComplaints[] = [
-  {
-    id"C001",
-    submittedBy"John Doe (Patient)",
-    userType"Patient",
-    category"Service Quality",
-    subject"Nurse arrived late",
-    description"The nurse arrived 30 minutes late to the scheduled appointment without prior notice.",
-    date"2026-03-01",
-    status"Open",
-  },
-  {
-    id"C002",
-    submittedBy"Dr. Emily Chen (Nurse)",
-    userType"Nurse",
-    category"Technical",
-    subject"App not loading patient details",
-    description"Unable to load patient medical history in the mobile app.",
-    date"2026-02-28",
-    status"In Progress",
-  },
-  {
-    id"C003",
-    submittedBy"Jane Smith (Patient)",
-    userType"Patient",
-    category"Billing",
-    subject"Incorrect charge",
-    description"I was charged for a 3-hour service but only received 2 hours of care.",
-    date"2026-02-27",
-    status"Resolved",
-  },
-];
+import {
+  fetchComplaints,
+  fetchComplaintDetails,
+  respondToComplaint,
+  resolveComplaint,
+} from "../../services/complaintsSupportService";
 
 export default function ComplaintsSupport() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ComplaintStatus | "All">("All");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [complaints, setComplaints] = useState([]);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [adminResponse, setAdminResponse] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const filteredComplaints = mockComplaints.filter((complaint) => {
-    const matchesSearch =
-      complaint.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.submittedBy.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "All" || complaint.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const loadComplaints = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const data = await fetchComplaints(searchTerm, statusFilter);
+      setComplaints(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError(err.message || "Failed to load complaints");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      loadComplaints();
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [searchTerm, statusFilter]);
 
   const getStatusBadge = (status) => {
     const styles = {
-      Open"bg-yellow-100 text-yellow-800",
-      "In Progress""bg-blue-100 text-blue-800",
-      Resolved"bg-green-100 text-green-800",
+      Open: "bg-yellow-100 text-yellow-800",
+      "In Progress": "bg-blue-100 text-blue-800",
+      Resolved: "bg-green-100 text-green-800",
     };
-    return <span className={`px-3 py-1 rounded-full text-xs ${styles[status]}`}>{status}</span>;
+
+    return (
+      <span
+        className={`px-3 py-1 rounded-full text-xs ${
+          styles[status] || "bg-gray-100 text-gray-800"
+        }`}
+      >
+        {status}
+      </span>
+    );
   };
 
   const getCategoryColor = (category) => {
     const colors = {
-      "Service Quality""text-red-600",
-      Billing"text-orange-600",
-      Technical"text-blue-600",
-      Other"text-gray-600",
+      "Service Quality": "text-red-600",
+      Billing: "text-orange-600",
+      Technical: "text-blue-600",
+      Other: "text-gray-600",
     };
-    return colors[category];
+
+    return colors[category] || "text-gray-600";
+  };
+
+  const handleViewComplaint = async (complaint) => {
+    try {
+      setDetailsLoading(true);
+      const details = await fetchComplaintDetails(complaint.complaintId);
+      setSelectedComplaint(details);
+      setAdminResponse(details.adminResponse || "");
+    } catch (err) {
+      alert(err.message || "Failed to load complaint details");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const handleSendResponse = async () => {
+    if (!selectedComplaint) return;
+
+    if (!adminResponse.trim()) {
+      alert("Please enter a response.");
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      await respondToComplaint(selectedComplaint.complaintId, adminResponse);
+
+      const updated = await fetchComplaintDetails(selectedComplaint.complaintId);
+      setSelectedComplaint(updated);
+      setAdminResponse(updated.adminResponse || "");
+
+      await loadComplaints();
+      alert("Response sent successfully.");
+    } catch (err) {
+      alert(err.message || "Failed to send response");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResolveComplaint = async () => {
+    if (!selectedComplaint) return;
+
+    try {
+      setActionLoading(true);
+      await resolveComplaint(selectedComplaint.complaintId);
+
+      await loadComplaints();
+      const updated = await fetchComplaintDetails(selectedComplaint.complaintId);
+      setSelectedComplaint(updated);
+
+      alert("Complaint marked as resolved.");
+    } catch (err) {
+      alert(err.message || "Failed to resolve complaint");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const formatDate = (value) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleString();
   };
 
   return (
@@ -84,10 +149,13 @@ export default function ComplaintsSupport() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          
+          <div>
             <h2 className="text-gray-800 mb-1">Complaints & Support</h2>
-            <p className="text-sm text-gray-500">Manage user complaints and support tickets</p>
+            <p className="text-sm text-gray-500">
+              Manage user complaints and support tickets
+            </p>
           </div>
+
           <div className="flex gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:flex-initial">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -99,10 +167,11 @@ export default function ComplaintsSupport() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+
             <select
               className="px-4 py-2 border border-gray-300 rounded-lg bg-white"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value )}
+              onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="All">All Status</option>
               <option value="Open">Open</option>
@@ -113,45 +182,109 @@ export default function ComplaintsSupport() {
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4">
+          {error}
+        </div>
+      )}
+
       {/* Complaints Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
-              
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Complaint ID</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Submitted By</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Category</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Subject</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Date</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Status</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Actions</th>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Complaint ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Submitted By
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Subject
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200">
-              {filteredComplaints.map((complaint) => (
-                <tr key={complaint.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-800">{complaint.id}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{complaint.submittedBy}</td>
-                  <td className="px-6 py-4">
-                    <span className={`text-sm ${getCategoryColor(complaint.category)}`}>
-                      {complaint.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{complaint.subject}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{complaint.date}</td>
-                  <td className="px-6 py-4">{getStatusBadge(complaint.status)}</td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelectedComplaint(complaint)}
-                      className="inline-flex items-center gap-2 px-3 py-1 text-sm text-[#1F7A8C] hover:bg-[#1F7A8C]/10 rounded-lg transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View
-                    </button>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-6 py-6 text-sm text-gray-500 text-center"
+                  >
+                    Loading...
                   </td>
                 </tr>
-              ))}
+              ) : complaints.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-6 py-6 text-sm text-gray-500 text-center"
+                  >
+                    No complaints found.
+                  </td>
+                </tr>
+              ) : (
+                complaints.map((complaint) => (
+                  <tr
+                    key={complaint.complaintId}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {complaint.complaintCode}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {complaint.submittedBy}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <span
+                        className={`text-sm ${getCategoryColor(complaint.category)}`}
+                      >
+                        {complaint.category}
+                      </span>
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {complaint.subject}
+                    </td>
+
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatDate(complaint.createdAt)}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      {getStatusBadge(complaint.status)}
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => handleViewComplaint(complaint)}
+                        disabled={detailsLoading}
+                        className="inline-flex items-center gap-2 px-3 py-1 text-sm text-[#1F7A8C] hover:bg-[#1F7A8C]/10 rounded-lg transition-colors disabled:opacity-70"
+                      >
+                        <Eye className="w-4 h-4" />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -166,60 +299,91 @@ export default function ComplaintsSupport() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Complaint Info */}
               <div className="grid grid-cols-2 gap-4">
-                
+                <div>
                   <p className="text-sm text-gray-500">Complaint ID</p>
-                  <p className="text-sm text-gray-800 mt-1">{selectedComplaint.id}</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedComplaint.complaintCode}
+                  </p>
                 </div>
-                
+
+                <div>
                   <p className="text-sm text-gray-500">Status</p>
-                  <div className="mt-1">{getStatusBadge(selectedComplaint.status)}</div>
+                  <div className="mt-1">
+                    {getStatusBadge(selectedComplaint.status)}
+                  </div>
                 </div>
-                
+
+                <div>
                   <p className="text-sm text-gray-500">Submitted By</p>
-                  <p className="text-sm text-gray-800 mt-1">{selectedComplaint.submittedBy}</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedComplaint.submittedBy}
+                  </p>
                 </div>
-                
+
+                <div>
+                  <p className="text-sm text-gray-500">User Email</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {selectedComplaint.userEmail || "-"}
+                  </p>
+                </div>
+
+                <div>
                   <p className="text-sm text-gray-500">Category</p>
-                  <p className={`text-sm mt-1 ${getCategoryColor(selectedComplaint.category)}`}>
+                  <p
+                    className={`text-sm mt-1 ${getCategoryColor(selectedComplaint.category)}`}
+                  >
                     {selectedComplaint.category}
                   </p>
                 </div>
-                <div className="col-span-2">
+
+                <div>
                   <p className="text-sm text-gray-500">Date Submitted</p>
-                  <p className="text-sm text-gray-800 mt-1">{selectedComplaint.date}</p>
+                  <p className="text-sm text-gray-800 mt-1">
+                    {formatDate(selectedComplaint.createdAt)}
+                  </p>
                 </div>
+
+                {selectedComplaint.respondedAt && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-500">Last Response Time</p>
+                    <p className="text-sm text-gray-800 mt-1">
+                      {formatDateTime(selectedComplaint.respondedAt)}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Subject and Description */}
-              
+              <div>
                 <p className="text-sm text-gray-500 mb-2">Subject</p>
-                <p className="text-sm text-gray-800">{selectedComplaint.subject}</p>
+                <p className="text-sm text-gray-800">
+                  {selectedComplaint.subject}
+                </p>
               </div>
 
-              
+              <div>
                 <p className="text-sm text-gray-500 mb-2">Description</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{selectedComplaint.description}</p>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  {selectedComplaint.description}
+                </p>
               </div>
 
-              {/* Admin Response */}
-              {selectedComplaint.status !== "Resolved" && (
-                
-                  <label className="block text-sm text-gray-700 mb-2">Admin Response</label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
-                    rows={4}
-                    placeholder="Type your response to the user..."
-                    value={adminResponse}
-                    onChange={(e) => setAdminResponse(e.target.value)}
-                  />
-                </div>
-              )}
+              <div>
+                <label className="block text-sm text-gray-700 mb-2">
+                  Admin Response
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white"
+                  rows={4}
+                  placeholder="Type your response to the user..."
+                  value={adminResponse}
+                  onChange={(e) => setAdminResponse(e.target.value)}
+                  disabled={selectedComplaint.status === "Resolved"}
+                />
+              </div>
             </div>
 
-            {/* Actions */}
-            <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
+            <div className="p-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3 justify-end">
               <button
                 onClick={() => {
                   setSelectedComplaint(null);
@@ -229,28 +393,25 @@ export default function ComplaintsSupport() {
               >
                 Close
               </button>
+
               {selectedComplaint.status !== "Resolved" && (
-                
+                <>
                   <button
-                    onClick={() => {
-                      alert("Response sent to user!");
-                      setAdminResponse("");
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    onClick={handleSendResponse}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-70"
                   >
                     <MessageSquare className="w-4 h-4" />
-                    Send Response
+                    {actionLoading ? "Sending..." : "Send Response"}
                   </button>
+
                   <button
-                    onClick={() => {
-                      alert("Complaint marked as resolved!");
-                      setSelectedComplaint(null);
-                      setAdminResponse("");
-                    }}
-                    className="px-4 py-2 bg-[#1F7A8C] text-white rounded-lg hover:bg-[#18626F] transition-colors flex items-center gap-2"
+                    onClick={handleResolveComplaint}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-[#1F7A8C] text-white rounded-lg hover:bg-[#18626F] transition-colors flex items-center gap-2 disabled:opacity-70"
                   >
                     <CheckCircle className="w-4 h-4" />
-                    Mark as Resolved
+                    {actionLoading ? "Processing..." : "Mark as Resolved"}
                   </button>
                 </>
               )}

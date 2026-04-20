@@ -1,154 +1,141 @@
-import { useState } from "react";
-import { DollarSign, TrendingUp, Users, RefreshCcw, Clock, Search, Filter, Download } from "lucide-react";
-
-
-  transactionId;
-  bookingId;
-  patientName;
-  nurseName;
-  serviceName;
-  totalAmount;
-  platformCommission;
-  nurseAmount;
-  paymentStatus;
-  paymentMethod;
-  transactionDate;
-}
-
-const mockTransactions[] = [
-  {
-    transactionId"TXN001234",
-    bookingId"BK2025001",
-    patientName"John Smith",
-    nurseName"Nurse Emily Chen",
-    serviceName"Home Care",
-    totalAmount120,
-    platformCommission18,
-    nurseAmount102,
-    paymentStatus"Paid",
-    paymentMethod"Credit Card",
-    transactionDate"2026-04-02 10:30 AM",
-  },
-  {
-    transactionId"TXN001235",
-    bookingId"BK2025002",
-    patientName"Sarah Johnson",
-    nurseName"Nurse David Lee",
-    serviceName"Wound Care",
-    totalAmount80,
-    platformCommission12,
-    nurseAmount68,
-    paymentStatus"Paid",
-    paymentMethod"PayPal",
-    transactionDate"2026-04-02 09:15 AM",
-  },
-  {
-    transactionId"TXN001236",
-    bookingId"BK2025003",
-    patientName"Michael Brown",
-    nurseName"Nurse Sarah Wilson",
-    serviceName"IV Therapy",
-    totalAmount150,
-    platformCommission22.5,
-    nurseAmount127.5,
-    paymentStatus"Pending",
-    paymentMethod"Bank Transfer",
-    transactionDate"2026-04-02 08:45 AM",
-  },
-  {
-    transactionId"TXN001237",
-    bookingId"BK2025004",
-    patientName"Emma Davis",
-    nurseName"Nurse Robert Kim",
-    serviceName"Physical Therapy",
-    totalAmount100,
-    platformCommission15,
-    nurseAmount85,
-    paymentStatus"Paid",
-    paymentMethod"Credit Card",
-    transactionDate"2026-04-01 05:20 PM",
-  },
-  {
-    transactionId"TXN001238",
-    bookingId"BK2025005",
-    patientName"James Wilson",
-    nurseName"Nurse Jessica Martinez",
-    serviceName"Post-Surgery Care",
-    totalAmount200,
-    platformCommission30,
-    nurseAmount170,
-    paymentStatus"Refunded",
-    paymentMethod"Credit Card",
-    transactionDate"2026-04-01 03:10 PM",
-  },
-  {
-    transactionId"TXN001239",
-    bookingId"BK2025006",
-    patientName"Olivia Taylor",
-    nurseName"Nurse Daniel Chen",
-    serviceName"Home Care",
-    totalAmount120,
-    platformCommission18,
-    nurseAmount102,
-    paymentStatus"Failed",
-    paymentMethod"Credit Card",
-    transactionDate"2026-04-01 02:30 PM",
-  },
-];
-
-const recentActivity = [
-  { description"Payment received for Booking #BK2025001", amount"+$120.00", time"5 mins ago", type"credit" },
-  { description"Commission earned from Transaction #TXN001234", amount"+$18.00", time"5 mins ago", type"credit" },
-  { description"Payout to Nurse Emily Chen", amount"-$102.00", time"10 mins ago", type"debit" },
-  { description"Refund issued for Booking #BK2025005", amount"-$200.00", time"2 hours ago", type"debit" },
-];
+import { useEffect, useState } from "react";
+import {
+  DollarSign,
+  TrendingUp,
+  Users,
+  RefreshCcw,
+  Clock,
+  Search,
+  Filter,
+  Download,
+} from "lucide-react";
+import {
+  fetchTransactionStats,
+  fetchTransactions,
+  fetchRecentFinancialActivity,
+  exportTransactionsPdf,
+} from "../../services/paymentTransactionsService";
 
 export default function PaymentTransactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    platformCommission: 0,
+    nursePayouts: 0,
+    refundedTransactions: 0,
+    pendingPayments: 0,
+  });
+  const [transactions, setTransactions] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const getStatusBadge = (status) => {
     const styles = {
-      Paid"bg-green-100 text-green-800",
-      Pending"bg-yellow-100 text-yellow-800",
-      Refunded"bg-blue-100 text-blue-800",
-      Failed"bg-red-100 text-red-800",
+      Paid: "bg-green-100 text-green-800",
+      Pending: "bg-yellow-100 text-yellow-800",
+      Refunded: "bg-blue-100 text-blue-800",
+      Failed: "bg-red-100 text-red-800",
     };
-    return <span className={`px-3 py-1 rounded-full text-xs ${styles[status]}`}>{status}</span>;
+
+    return (
+      <span
+        className={`px-3 py-1 rounded-full text-xs ${
+          styles[status] || "bg-gray-100 text-gray-800"
+        }`}
+      >
+        {status}
+      </span>
+    );
   };
 
-  const filteredTransactions = mockTransactions.filter((transaction) => {
-    const matchesSearch =
-      transaction.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.bookingId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      transaction.nurseName.toLowerCase().includes(searchTerm.toLowerCase());
+  const formatMoney = (value) => {
+    const amount = Number(value || 0);
+    return `$${amount.toFixed(2)}`;
+  };
 
-    const matchesStatus = statusFilter === "All" || transaction.paymentStatus === statusFilter;
+  const formatDateTime = (value) => {
+    if (!value) return "-";
 
-    return matchesSearch && matchesStatus;
-  });
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
 
-  // Calculate summary stats
-  const totalRevenue = mockTransactions
-    .filter((t) => t.paymentStatus === "Paid")
-    .reduce((sum, t) => sum + t.totalAmount, 0);
+    return date.toLocaleString();
+  };
 
-  const totalCommission = mockTransactions
-    .filter((t) => t.paymentStatus === "Paid")
-    .reduce((sum, t) => sum + t.platformCommission, 0);
+  const getRelativeTime = (dateValue) => {
+    if (!dateValue) return "-";
 
-  const totalNursePayouts = mockTransactions
-    .filter((t) => t.paymentStatus === "Paid")
-    .reduce((sum, t) => sum + t.nurseAmount, 0);
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "-";
 
-  const totalRefunded = mockTransactions
-    .filter((t) => t.paymentStatus === "Refunded")
-    .reduce((sum, t) => sum + t.totalAmount, 0);
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
 
-  const totalPending = mockTransactions
-    .filter((t) => t.paymentStatus === "Pending")
-    .reduce((sum, t) => sum + t.totalAmount, 0);
+    if (seconds < 60) return "Just now";
+
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} mins ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hours ago`;
+
+    const days = Math.floor(hours / 24);
+    return `${days} days ago`;
+  };
+
+  const mapActivityType = (type) => {
+    if (type === "Income") return "credit";
+    return "debit";
+  };
+
+  const loadPageData = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const [statsData, transactionsData, activityData] = await Promise.all([
+        fetchTransactionStats(),
+        fetchTransactions(searchTerm, statusFilter),
+        fetchRecentFinancialActivity(),
+      ]);
+
+      setStats({
+        totalRevenue: statsData.totalRevenue || 0,
+        platformCommission: statsData.platformCommission || 0,
+        nursePayouts: statsData.nursePayouts || 0,
+        refundedTransactions: statsData.refundedTransactions || 0,
+        pendingPayments: statsData.pendingPayments || 0,
+      });
+
+      setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
+      setRecentActivity(Array.isArray(activityData) ? activityData : []);
+    } catch (err) {
+      setError(err.message || "Failed to load transactions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const delay = setTimeout(() => {
+      loadPageData();
+    }, 300);
+
+    return () => clearTimeout(delay);
+  }, [searchTerm, statusFilter]);
+
+  const handleExport = async () => {
+    try {
+      setExportLoading(true);
+      await exportTransactionsPdf(searchTerm, statusFilter);
+    } catch (err) {
+      alert(err.message || "Failed to export PDF");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -161,7 +148,7 @@ export default function PaymentTransactions() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-1">Total Revenue</p>
-          <h3 className="text-gray-800">${totalRevenue.toFixed(2)}</h3>
+          <h3 className="text-gray-800">{formatMoney(stats.totalRevenue)}</h3>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -171,7 +158,9 @@ export default function PaymentTransactions() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-1">Platform Commission</p>
-          <h3 className="text-gray-800">${totalCommission.toFixed(2)}</h3>
+          <h3 className="text-gray-800">
+            {formatMoney(stats.platformCommission)}
+          </h3>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -181,7 +170,7 @@ export default function PaymentTransactions() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-1">Nurse Payouts</p>
-          <h3 className="text-gray-800">${totalNursePayouts.toFixed(2)}</h3>
+          <h3 className="text-gray-800">{formatMoney(stats.nursePayouts)}</h3>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -191,7 +180,9 @@ export default function PaymentTransactions() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-1">Refunded Transactions</p>
-          <h3 className="text-gray-800">${totalRefunded.toFixed(2)}</h3>
+          <h3 className="text-gray-800">
+            {formatMoney(stats.refundedTransactions)}
+          </h3>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -201,7 +192,9 @@ export default function PaymentTransactions() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mb-1">Pending Payments</p>
-          <h3 className="text-gray-800">${totalPending.toFixed(2)}</h3>
+          <h3 className="text-gray-800">
+            {formatMoney(stats.pendingPayments)}
+          </h3>
         </div>
       </div>
 
@@ -225,7 +218,7 @@ export default function PaymentTransactions() {
               <select
                 className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg bg-white appearance-none cursor-pointer"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value )}
+                onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="All">All Status</option>
                 <option value="Paid">Paid</option>
@@ -235,94 +228,192 @@ export default function PaymentTransactions() {
               </select>
             </div>
 
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+            <button
+              onClick={handleExport}
+              disabled={exportLoading}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-70"
+            >
               <Download className="w-4 h-4" />
-              Export
+              {exportLoading ? "Exporting..." : "Export"}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-lg p-4">
+          {error}
+        </div>
+      )}
 
       {/* Transactions Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b border-gray-200">
           <h3 className="text-gray-800">All Transactions</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Showing {filteredTransactions.length} of {mockTransactions.length} transactions
+            Showing {transactions.length} transactions
           </p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
-              
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Transaction ID</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Booking ID</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Patient</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Nurse</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Service</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Total Amount</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Commission</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Nurse Amount</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Status</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Payment Method</th>
-                <th className="px-6 py-3 text-left text-xs text-gray-600">Date</th>
+              <tr>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Transaction ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Booking ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Patient
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Nurse
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Service
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Total Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Commission
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Nurse Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Payment Method
+                </th>
+                <th className="px-6 py-3 text-left text-xs text-gray-600">
+                  Date
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-200">
-              {filteredTransactions.map((transaction) => (
-                <tr key={transaction.transactionId} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 text-sm text-gray-800">{transaction.transactionId}</td>
-                  <td className="px-6 py-4 text-sm text-[#1F7A8C]">{transaction.bookingId}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{transaction.patientName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">{transaction.nurseName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{transaction.serviceName}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">${transaction.totalAmount.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-green-600">${transaction.platformCommission.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-800">${transaction.nurseAmount.toFixed(2)}</td>
-                  <td className="px-6 py-4">{getStatusBadge(transaction.paymentStatus)}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{transaction.paymentMethod}</td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{transaction.transactionDate}</td>
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="11"
+                    className="px-6 py-6 text-sm text-gray-500 text-center"
+                  >
+                    Loading...
+                  </td>
                 </tr>
-              ))}
+              ) : transactions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="11"
+                    className="px-6 py-6 text-sm text-gray-500 text-center"
+                  >
+                    No transactions found matching your criteria
+                  </td>
+                </tr>
+              ) : (
+                transactions.map((transaction) => (
+                  <tr
+                    key={transaction.paymentId}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {transaction.transactionId}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-[#1F7A8C]">
+                      {transaction.bookingCode}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {transaction.patientName}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {transaction.nurseName}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {transaction.serviceName}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {formatMoney(transaction.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-green-600">
+                      {formatMoney(transaction.commission)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-800">
+                      {formatMoney(transaction.nurseAmount)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {getStatusBadge(transaction.status)}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {transaction.paymentMethod}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatDateTime(transaction.createdAt)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-
-        {filteredTransactions.length === 0 && (
-          <div className="p-12 text-center">
-            <p className="text-gray-500">No transactions found matching your criteria</p>
-          </div>
-        )}
       </div>
 
       {/* Recent Financial Activity */}
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-gray-800 mb-4">Recent Financial Activity</h3>
-        <div className="space-y-3">
-          {recentActivity.map((activity, index) => (
-            <div key={index} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
-              <div className="flex items-center gap-4">
+
+        {loading ? (
+          <p className="text-sm text-gray-500">Loading...</p>
+        ) : recentActivity.length === 0 ? (
+          <p className="text-sm text-gray-500">No recent activity found.</p>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((activity, index) => {
+              const activityType = mapActivityType(activity.type);
+
+              return (
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    activity.type === "credit" ? "bg-green-500" "bg-red-500"
-                  }`}
-                ></div>
-                
-                  <p className="text-sm text-gray-800">{activity.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  key={`${activity.createdAt}-${index}`}
+                  className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        activityType === "credit"
+                          ? "bg-green-500"
+                          : "bg-red-500"
+                      }`}
+                    ></div>
+
+                    <div>
+                      <p className="text-sm text-gray-800">
+                        {activity.title || activity.description}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {getRelativeTime(activity.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`text-sm ${
+                      activityType === "credit"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {activityType === "credit" ? "+" : "-"}
+                    {formatMoney(activity.amount).replace("$", "$")}
+                  </span>
                 </div>
-              </div>
-              <span
-                className={`text-sm ${
-                  activity.type === "credit" ? "text-green-600" "text-red-600"
-                }`}
-              >
-                {activity.amount}
-              </span>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
