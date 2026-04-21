@@ -10,7 +10,6 @@ using NurseNow.Helpers;
 using NurseNow.Services;
 using NurseNow.Settings;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // =============================
@@ -65,7 +64,28 @@ builder.Services.AddAuthentication(options =>
 });
 
 // =============================
-// 4️⃣ Controllers & Swagger
+// 4️⃣ CORS (UPDATED)
+// =============================
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin))
+                    return false;
+
+                return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
+                       && (uri.Host == "localhost" || uri.Host == "127.0.0.1");
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// =============================
+// 5️⃣ Controllers & Swagger
 // =============================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -92,10 +112,14 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
+
+// =============================
+// 6️⃣ Services
+// =============================
 builder.Services.AddScoped<JwtService>();
 
 builder.Services.Configure<EmailSettings>(
@@ -103,15 +127,16 @@ builder.Services.Configure<EmailSettings>(
 
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+builder.Services.AddHostedService<NotificationSchedulerService>();
+
 // =============================
-// 5️⃣ Build App
+// 7️⃣ Build App
 // =============================
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
-
-app.UseHttpsRedirection();
+// =============================
+// 8️⃣ Seed Data
+// =============================
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -122,15 +147,18 @@ using (var scope = app.Services.CreateScope())
     await ServiceCatalogSeeder.SeedServiceCatalogAsync(context);
 }
 
-
-
+// Stripe
 Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
+// =============================
+// 9️⃣ Middleware
+// =============================
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseStaticFiles();
-app.UseAuthentication();
-app.UseAuthorization();
 app.UseHttpsRedirection();
+
+app.UseCors("AllowFrontend"); // ✔ مهم جدًا
 
 app.UseStaticFiles();
 

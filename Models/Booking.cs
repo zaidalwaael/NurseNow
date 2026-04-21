@@ -35,4 +35,6 @@ public class Booking
     public Service Service { get; set; }
 
     public Payment? Payment { get; set; }
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

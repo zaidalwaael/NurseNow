@@ -24,6 +24,8 @@
 
         public string? Notes { get; set; }
 
+        public string? PhoneNumber { get; set; }
+
         public ApplicationUser User { get; set; }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NurseNow.Data;
 
@@ -11,9 +12,11 @@ using NurseNow.Data;
 namespace NurseNow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260415221651_AddRejectionReasonToUsers")]
+    partial class AddRejectionReasonToUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,9 +37,6 @@ namespace NurseNow.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("BookingDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<TimeSpan>("EndTime")
@@ -285,9 +285,6 @@ namespace NurseNow.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Location")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -380,9 +377,6 @@ namespace NurseNow.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ComplaintId"));
 
-                    b.Property<string>("AdminResponse")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -393,9 +387,6 @@ namespace NurseNow.Migrations
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -434,16 +425,6 @@ namespace NurseNow.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("Message")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SentByAdminId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SentByAdminName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TargetAudience")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -491,65 +472,6 @@ namespace NurseNow.Migrations
                     b.ToTable("NurseDocuments");
                 });
 
-            modelBuilder.Entity("NurseNow.Models.NurseProfile", b =>
-                {
-                    b.Property<int>("NurseProfileId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NurseProfileId"));
-
-                    b.Property<string>("Address")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Bio")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CertificatePath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ExperienceYears")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LicenseNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Location")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NationalId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NationalIdImagePath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProfileImagePath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RejectionReason")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Specialization")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("VerificationStatus")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("NurseProfileId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("NurseProfiles");
-                });
-
             modelBuilder.Entity("NurseNow.Models.PatientProfile", b =>
                 {
                     b.Property<int>("PatientProfileId")
@@ -583,9 +505,6 @@ namespace NurseNow.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
@@ -687,8 +606,12 @@ namespace NurseNow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("ScheduledTime")
+                    b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -755,33 +678,92 @@ namespace NurseNow.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("AutoAssignNurse")
-                        .HasColumnType("bit");
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("EmailNotifications")
-                        .HasColumnType("bit");
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<int>("MinimumPasswordLength")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("NotifyNewComplaint")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("NotifyNewNurse")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("NotifyNewServiceRequest")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("RequireDocumentVerification")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("SessionTimeout")
-                        .HasColumnType("int");
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SystemSettings", (string)null);
+                    b.ToTable("SystemSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Key = "auto_assign_nurse",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4029),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Key = "require_document_verification",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4032),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Key = "email_notifications",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4034),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Key = "sms_notifications",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4035),
+                            Value = "false"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Key = "min_password_length",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4036),
+                            Value = "8"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Key = "two_factor_auth",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4037),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Key = "login_attempt_limit",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4039),
+                            Value = "5"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Key = "notify_new_nurse",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4040),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Key = "notify_new_request",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4041),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Key = "notify_new_complaint",
+                            UpdatedAt = new DateTime(2026, 4, 15, 22, 16, 50, 795, DateTimeKind.Utc).AddTicks(4042),
+                            Value = "true"
+                        });
                 });
 
             modelBuilder.Entity("NurseNow.Models.WeeklyAvailability", b =>
@@ -814,6 +796,62 @@ namespace NurseNow.Migrations
                     b.HasIndex("NurseId");
 
                     b.ToTable("WeeklyAvailabilities");
+                });
+
+            modelBuilder.Entity("NurseProfile", b =>
+                {
+                    b.Property<int>("NurseProfileId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NurseProfileId"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Bio")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CertificatePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ExperienceYears")
+                        .HasColumnType("int");
+
+                    b.Property<string>("LicenseNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NationalId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NationalIdImagePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProfileImagePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Specialization")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("VerificationStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("NurseProfileId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NurseProfiles");
                 });
 
             modelBuilder.Entity("Booking", b =>
@@ -927,17 +965,6 @@ namespace NurseNow.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("NurseNow.Models.NurseProfile", b =>
-                {
-                    b.HasOne("NurseNow.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("NurseNow.Models.PatientProfile", b =>
                 {
                     b.HasOne("NurseNow.Models.ApplicationUser", "User")
@@ -1015,6 +1042,17 @@ namespace NurseNow.Migrations
                         .IsRequired();
 
                     b.Navigation("Nurse");
+                });
+
+            modelBuilder.Entity("NurseProfile", b =>
+                {
+                    b.HasOne("NurseNow.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Booking", b =>

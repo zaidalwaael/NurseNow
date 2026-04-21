@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NurseNow.Data;
 
@@ -11,9 +12,11 @@ using NurseNow.Data;
 namespace NurseNow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260417181402_AddAdminResponseToComplaints")]
+    partial class AddAdminResponseToComplaints
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,9 +37,6 @@ namespace NurseNow.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("BookingDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<TimeSpan>("EndTime")
@@ -285,9 +285,6 @@ namespace NurseNow.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Location")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("bit");
 
@@ -437,16 +434,6 @@ namespace NurseNow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("SentByAdminId")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SentByAdminName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TargetAudience")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -527,9 +514,6 @@ namespace NurseNow.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProfileImagePath")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Specialization")
@@ -687,8 +671,12 @@ namespace NurseNow.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("ScheduledTime")
+                    b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -755,33 +743,92 @@ namespace NurseNow.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("AutoAssignNurse")
-                        .HasColumnType("bit");
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("EmailNotifications")
-                        .HasColumnType("bit");
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
-                    b.Property<int>("MinimumPasswordLength")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("NotifyNewComplaint")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("NotifyNewNurse")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("NotifyNewServiceRequest")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("RequireDocumentVerification")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("SessionTimeout")
-                        .HasColumnType("int");
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("SystemSettings", (string)null);
+                    b.ToTable("SystemSettings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Key = "auto_assign_nurse",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7778),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Key = "require_document_verification",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7780),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Key = "email_notifications",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7782),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Key = "sms_notifications",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7784),
+                            Value = "false"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Key = "min_password_length",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7785),
+                            Value = "8"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Key = "two_factor_auth",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7787),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Key = "login_attempt_limit",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7789),
+                            Value = "5"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            Key = "notify_new_nurse",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7790),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            Key = "notify_new_request",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7791),
+                            Value = "true"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            Key = "notify_new_complaint",
+                            UpdatedAt = new DateTime(2026, 4, 17, 18, 14, 0, 6, DateTimeKind.Utc).AddTicks(7793),
+                            Value = "true"
+                        });
                 });
 
             modelBuilder.Entity("NurseNow.Models.WeeklyAvailability", b =>

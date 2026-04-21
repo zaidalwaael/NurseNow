@@ -19,6 +19,11 @@ namespace NurseNow.Data
         public DbSet<PatientProfile> PatientProfiles { get; set; }
         public DbSet<NurseNow.Models.Review> Reviews { get; set; }
         public DbSet<AdminActivityLog> AdminActivityLogs { get; set; }
+        public DbSet<ScheduledNotification> ScheduledNotifications { get; set; }
+
+        public DbSet<NurseDocument> NurseDocuments { get; set; }
+
+        public DbSet<SystemSetting> SystemSettings { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
@@ -92,16 +97,16 @@ namespace NurseNow.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<PatientProfile>()
-    .HasOne(p => p.User)
-    .WithMany()
-    .HasForeignKey(p => p.UserId)
-    .OnDelete(DeleteBehavior.Cascade);
+               .HasOne(p => p.User)
+               .WithMany()
+               .HasForeignKey(p => p.UserId)
+               .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<NurseNow.Models.Review>()
-    .HasOne(r => r.Booking)
-    .WithMany()
-    .HasForeignKey(r => r.BookingId)
-    .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(r => r.Booking)
+                .WithMany()
+                .HasForeignKey(r => r.BookingId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<NurseNow.Models.Review>()
                 .HasOne(r => r.Patient)
@@ -114,6 +119,9 @@ namespace NurseNow.Data
                 .WithMany()
                 .HasForeignKey(r => r.NurseId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SystemSetting>().ToTable("SystemSettings");
+
         }
     }
 }
