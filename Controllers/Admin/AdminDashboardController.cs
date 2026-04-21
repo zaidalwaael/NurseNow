@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
 
@@ -6,6 +7,8 @@ namespace NurseNow.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/dashboard")]
+    [Authorize(Roles = "Administrator")]
+
     public class AdminDashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

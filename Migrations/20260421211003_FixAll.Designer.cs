@@ -12,8 +12,8 @@ using NurseNow.Data;
 namespace NurseNow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260420204600_Fixed")]
-    partial class Fixed
+    [Migration("20260421211003_FixAll")]
+    partial class FixAll
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
