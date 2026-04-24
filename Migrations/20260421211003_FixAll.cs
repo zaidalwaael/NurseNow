@@ -11,14 +11,6 @@ namespace NurseNow.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Target",
-                table: "ScheduledNotifications");
-
-            migrationBuilder.RenameColumn(
-                name: "ScheduledAt",
-                table: "ScheduledNotifications",
-                newName: "ScheduledTime");
 
             migrationBuilder.AddColumn<string>(
                 name: "RejectionReason",
@@ -53,17 +45,6 @@ namespace NurseNow.Migrations
                 name: "CreatedAt",
                 table: "Bookings");
 
-            migrationBuilder.RenameColumn(
-                name: "ScheduledTime",
-                table: "ScheduledNotifications",
-                newName: "ScheduledAt");
-
-            migrationBuilder.AddColumn<string>(
-                name: "Target",
-                table: "ScheduledNotifications",
-                type: "nvarchar(max)",
-                nullable: false,
-                defaultValue: "");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Location",

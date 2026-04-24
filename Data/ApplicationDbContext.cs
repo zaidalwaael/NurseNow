@@ -120,7 +120,7 @@ namespace NurseNow.Data
                 .HasForeignKey(r => r.NurseId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<SystemSetting>().ToTable("SystemSettings");
+            
 
         }
     }

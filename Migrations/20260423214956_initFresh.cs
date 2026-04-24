@@ -5,7 +5,7 @@
 namespace NurseNow.Migrations
 {
     /// <inheritdoc />
-    public partial class AddIsUrgentToComplaints : Migration
+    public partial class initFresh : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

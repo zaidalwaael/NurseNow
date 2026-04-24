@@ -12,8 +12,8 @@ using NurseNow.Data;
 namespace NurseNow.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260422151721_AddIsUrgentToComplaints")]
-    partial class AddIsUrgentToComplaints
+    [Migration("20260423230418_AddAdminRoleAndLastLoginAt")]
+    partial class AddAdminRoleAndLastLoginAt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -787,7 +787,7 @@ namespace NurseNow.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SystemSettings", (string)null);
+                    b.ToTable("SystemSettings");
                 });
 
             modelBuilder.Entity("NurseNow.Models.WeeklyAvailability", b =>
