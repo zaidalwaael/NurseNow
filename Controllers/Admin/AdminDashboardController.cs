@@ -8,7 +8,6 @@ namespace NurseNow.Controllers.Admin
     [ApiController]
     [Route("api/admin/dashboard")]
     [Authorize(Roles = "Administrator")]
-
     public class AdminDashboardController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -18,48 +17,25 @@ namespace NurseNow.Controllers.Admin
             _context = context;
         }
 
-        // =========================================
-        // SUMMARY
-        // =========================================
-        [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary()
+        [HttpGet("overview")]
+        public async Task<IActionResult> GetDashboardOverview()
         {
             var today = DateTime.UtcNow.Date;
-            var tomorrow = today.AddDays(1);
+            var weekStart = today.AddDays(-6);
 
             var totalPatients = await _context.Users
-                .Where(u => u.RoleType == "Patient")
-                .CountAsync();
+                .CountAsync(u => u.RoleType == "Patient");
 
             var totalNurses = await _context.Users
-                .Where(u => u.RoleType == "Nurse")
-                .CountAsync();
+                .CountAsync(u => u.RoleType == "Nurse");
 
-            var pendingVerifications = await _context.Users
-                .Where(u => u.RoleType == "Nurse" && u.AccountStatus == "Pending")
-                .CountAsync();
+            var pendingVerifications = await _context.NurseProfiles
+                .CountAsync(n => n.VerificationStatus == "Pending");
 
-            var bookings = await _context.Bookings.ToListAsync();
+            var todaysRequests = await _context.Bookings
+                .CountAsync(b => b.CreatedAt.Date == today);
 
-            var todaysRequests = bookings.Count(b =>
-                b.BookingDate >= today && b.BookingDate < tomorrow);
-
-            return Ok(new
-            {
-                totalPatients,
-                totalNurses,
-                pendingVerifications,
-                todaysRequests
-            });
-        }
-
-        // =========================================
-        // REQUEST STATUS DISTRIBUTION
-        // =========================================
-        [HttpGet("request-status-distribution")]
-        public async Task<IActionResult> GetRequestStatusDistribution()
-        {
-            var data = await _context.Bookings
+            var requestStatusDistribution = await _context.Bookings
                 .GroupBy(b => b.Status)
                 .Select(g => new
                 {
@@ -68,47 +44,40 @@ namespace NurseNow.Controllers.Admin
                 })
                 .ToListAsync();
 
-            return Ok(data);
-        }
-
-        // =========================================
-        // WEEKLY ACTIVITY
-        // =========================================
-        [HttpGet("weekly-activity")]
-        public async Task<IActionResult> GetWeeklyActivity()
-        {
-            var last7Days = DateTime.UtcNow.Date.AddDays(-6);
-
-            var bookings = await _context.Bookings
-                .Where(b => b.BookingDate >= last7Days)
-                .ToListAsync();
-
-            var data = bookings
-                .GroupBy(b => b.BookingDate.Date)
-                .OrderBy(g => g.Key)
+            var weeklyActivity = await _context.Bookings
+                .Where(b => b.CreatedAt.Date >= weekStart && b.CreatedAt.Date <= today)
+                .GroupBy(b => b.CreatedAt.Date)
                 .Select(g => new
                 {
-                    day = g.Key.ToString("ddd"),
+                    date = g.Key,
                     requests = g.Count(),
-                    completed = g.Count(x => x.Status == "Completed")
+                    completed = g.Count(b => b.Status == "Completed")
                 })
-                .ToList();
-
-            return Ok(data);
-        }
-
-        // =========================================
-        // RECENT ACTIVITY
-        // =========================================
-        [HttpGet("recent-activity")]
-        public async Task<IActionResult> GetRecentActivity(int limit = 5)
-        {
-            var data = await _context.AdminActivityLogs
-                .OrderByDescending(a => a.CreatedAt)
-                .Take(limit)
+                .OrderBy(x => x.date)
                 .ToListAsync();
 
-            return Ok(data);
+            var recentActivity = await _context.AdminActivityLogs
+                .OrderByDescending(a => a.CreatedAt)
+                .Take(5)
+                .Select(a => new
+                {
+                    title = a.Title,
+                    description = a.Description,
+                    activityType = a.ActivityType,
+                    createdAt = a.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                totalPatients,
+                totalNurses,
+                pendingVerifications,
+                todaysRequests,
+                requestStatusDistribution,
+                weeklyActivity,
+                recentActivity
+            });
         }
     }
 }

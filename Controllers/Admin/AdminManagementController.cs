@@ -4,243 +4,147 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
 using NurseNow.Models;
-using NurseNow.DTOs.Admin;
+using System.Security.Claims;
 
 namespace NurseNow.Controllers.Admin
 {
     [ApiController]
-    [Route("api/admin/admin-management")]
+    [Route("api/admin/management")]
     [Authorize(Roles = "Administrator")]
     public class AdminManagementController : ControllerBase
     {
-        private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
+
+        private const string SuperAdminEmail = "admin@nursenow.com";
 
         public AdminManagementController(
-            UserManager<ApplicationUser> userManager,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager)
         {
-            _userManager = userManager;
             _context = context;
+            _userManager = userManager;
         }
 
-        // =========================================
-        // GET ALL ADMINS
-        // =========================================
+        private bool IsSuperAdmin()
+        {
+            var email = User.FindFirst(ClaimTypes.Email)?.Value;
+            return email != null &&
+                   email.ToLower() == SuperAdminEmail.ToLower();
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAdmins()
         {
-            var admins = await _userManager.Users
-                .Where(u => u.RoleType == "Admin")
+            if (!IsSuperAdmin())
+                return Forbid();
+
+            var admins = await _context.Users
+                .Where(u => u.RoleType == "Administrator")
                 .OrderByDescending(u => u.CreatedAt)
                 .Select(u => new
                 {
-                    id = u.Id,
+                    adminId = u.Id,
                     fullName = u.FullName,
                     email = u.Email,
-                    createdAt = u.CreatedAt,
-                    lastLoginAt = u.LastLoginAt
+                    createdDate = u.CreatedAt
                 })
                 .ToListAsync();
 
             return Ok(admins);
         }
 
-        // =========================================
-        // GET ADMIN DETAILS
-        // =========================================
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetAdminDetails(string id)
-        {
-            var admin = await _userManager.Users
-                .Where(u => u.Id == id && u.RoleType == "Admin")
-                .Select(u => new
-                {
-                    id = u.Id,
-                    fullName = u.FullName,
-                    email = u.Email,
-                    location = u.Location,
-                    phoneNumber = u.PhoneNumber,
-                    createdAt = u.CreatedAt,
-                    lastLoginAt = u.LastLoginAt
-                })
-                .FirstOrDefaultAsync();
-
-            if (admin == null)
-                return NotFound(new { message = "Admin not found." });
-
-            return Ok(admin);
-        }
-
-        // =========================================
-        // CREATE ADMIN
-        // =========================================
         [HttpPost]
-        public async Task<IActionResult> CreateAdmin([FromBody] CreateAdminDto dto)
+        public async Task<IActionResult> CreateAdmin(CreateAdminDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.FullName) ||
-                string.IsNullOrWhiteSpace(dto.Email) ||
-                string.IsNullOrWhiteSpace(dto.Password))
-            {
-                return BadRequest(new
-                {
-                    message = "Full name, email, and password are required."
-                });
-            }
+            if (!IsSuperAdmin())
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(dto.FullName))
+                return BadRequest(new { message = "Full name is required" });
+
+            if (string.IsNullOrWhiteSpace(dto.Email))
+                return BadRequest(new { message = "Email is required" });
+
+            if (string.IsNullOrWhiteSpace(dto.Password))
+                return BadRequest(new { message = "Password is required" });
 
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
-            if (existingUser != null)
-            {
-                return BadRequest(new { message = "Email already exists." });
-            }
 
-            var user = new ApplicationUser
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already exists" });
+
+            var admin = new ApplicationUser
             {
                 UserName = dto.Email,
                 Email = dto.Email,
                 FullName = dto.FullName,
-                Location = dto.Location,
-                PhoneNumber = dto.PhoneNumber,
-                RoleType = "Admin",
-                CreatedAt = DateTime.UtcNow,
-                EmailConfirmed = true
+                RoleType = "Administrator",
+                EmailConfirmed = true,
+                AccountStatus = "Active",
+                CreatedAt = DateTime.UtcNow
             };
 
-            var createResult = await _userManager.CreateAsync(user, dto.Password);
+            var result = await _userManager.CreateAsync(admin, dto.Password);
 
-            if (!createResult.Succeeded)
-            {
-                return BadRequest(new
-                {
-                    message = "Create admin failed.",
-                    errors = createResult.Errors.Select(e => e.Description)
-                });
-            }
+            if (!result.Succeeded)
+                return BadRequest(result.Errors);
 
-            var roleResult = await _userManager.AddToRoleAsync(user, "Administrator");
-
-            if (!roleResult.Succeeded)
-            {
-                return BadRequest(new
-                {
-                    message = "Admin created but role assignment failed.",
-                    errors = roleResult.Errors.Select(e => e.Description)
-                });
-            }
+            await _userManager.AddToRoleAsync(admin, "Administrator");
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "Admin Created",
-                Description = $"Created new admin account for {user.FullName}",
+                Title = "New admin created",
+                Description = $"{dto.FullName} was added as an administrator.",
                 ActivityType = "AdminManagement",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Admin created successfully." });
+            return Ok(new { message = "Admin created successfully" });
         }
 
-        // =========================================
-        // UPDATE ADMIN
-        // =========================================
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAdmin(string id, [FromBody] UpdateAdminDto dto)
+        [HttpDelete("{adminId}")]
+        public async Task<IActionResult> DeleteAdmin(string adminId)
         {
-            var user = await _userManager.FindByIdAsync(id);
+            if (!IsSuperAdmin())
+                return Forbid();
 
-            if (user == null || user.RoleType != "Admin")
+            var admin = await _userManager.FindByIdAsync(adminId);
+
+            if (admin == null)
+                return NotFound(new { message = "Admin not found" });
+
+            if (admin.Email != null &&
+                admin.Email.ToLower() == SuperAdminEmail.ToLower())
             {
-                return NotFound(new { message = "Admin not found." });
+                return BadRequest(new { message = "Main admin cannot be deleted" });
             }
 
-            user.FullName = dto.FullName;
-            user.Location = dto.Location;
-            user.PhoneNumber = dto.PhoneNumber;
+            var result = await _userManager.DeleteAsync(admin);
 
-            var updateResult = await _userManager.UpdateAsync(user);
-
-            if (!updateResult.Succeeded)
-            {
-                return BadRequest(new
-                {
-                    message = "Failed to update admin.",
-                    errors = updateResult.Errors.Select(e => e.Description)
-                });
-            }
+            if (!result.Succeeded)
+                return BadRequest(result.Errors);
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "Admin Updated",
-                Description = $"Updated admin account for {user.FullName}",
+                Title = "Admin deleted",
+                Description = $"{admin.FullName} was deleted from admin accounts.",
                 ActivityType = "AdminManagement",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Admin updated successfully." });
+            return Ok(new { message = "Admin deleted successfully" });
         }
+    }
 
-        // =========================================
-        // DELETE ADMIN
-        // =========================================
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAdmin(string id)
-        {
-            var user = await _userManager.FindByIdAsync(id);
-
-            if (user == null || user.RoleType != "Admin")
-            {
-                return NotFound(new { message = "Admin not found." });
-            }
-
-            var fullName = user.FullName;
-
-            var deleteResult = await _userManager.DeleteAsync(user);
-
-            if (!deleteResult.Succeeded)
-            {
-                return BadRequest(new
-                {
-                    message = "Failed to delete admin.",
-                    errors = deleteResult.Errors.Select(e => e.Description)
-                });
-            }
-
-            _context.AdminActivityLogs.Add(new AdminActivityLog
-            {
-                Title = "Admin Deleted",
-                Description = $"Deleted admin account for {fullName}",
-                ActivityType = "AdminManagement",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Admin deleted successfully." });
-        }
-
-        // =========================================
-        // RECENT ADMIN ACTIONS
-        // =========================================
-        [HttpGet("recent-actions")]
-        public async Task<IActionResult> GetRecentActions()
-        {
-            var actions = await _context.AdminActivityLogs
-                .OrderByDescending(a => a.CreatedAt)
-                .Take(10)
-                .Select(a => new
-                {
-                    title = a.Title,
-                    description = a.Description,
-                    activityType = a.ActivityType,
-                    createdAt = a.CreatedAt,
-                    adminName = "Admin"
-                })
-                .ToListAsync();
-
-            return Ok(actions);
-        }
+    public class CreateAdminDto
+    {
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Password { get; set; } = "";
     }
 }

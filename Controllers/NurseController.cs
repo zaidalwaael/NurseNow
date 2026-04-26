@@ -924,6 +924,48 @@ namespace NurseNow.Controllers
             });
         }
 
+
+        [HttpGet("reviews")]
+        public async Task<IActionResult> GetMyReviews()
+        {
+            var nurseId = GetCurrentUserId();
+
+            if (string.IsNullOrEmpty(nurseId))
+                return Unauthorized();
+
+            var reviews = await _context.Reviews
+                .Include(r => r.Patient)
+                .Where(r => r.NurseId == nurseId)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new
+                {
+                    reviewId = r.ReviewId,
+                    patientName = r.Patient.FullName,
+                    rating = r.Rating,
+                    comment = r.Comment,
+                    createdAt = r.CreatedAt
+                })
+                .ToListAsync();
+
+            var averageRating = reviews.Any()
+                ? Math.Round(reviews.Average(r => (double)r.rating), 1)
+                : 0.0;
+
+            return Ok(new
+            {
+                averageRating,
+                reviewsCount = reviews.Count,
+                reviews
+            });
+        }
+
+
+
+
+
+
+
+
         [HttpPut("appointments/{bookingId}/cancel")]
         public async Task<IActionResult> CancelAppointmentByNurse(int bookingId)
         {

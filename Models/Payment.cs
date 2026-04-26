@@ -12,7 +12,7 @@
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public Booking Booking { get; set; }
+        public Booking? Booking { get; set; }
         public string PaymentMethod { get; set; } = "Cash";
     }
 }

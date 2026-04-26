@@ -3,17 +3,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NurseNow.Data;
-using NurseNow.Models;
-using System.Text;
-using NurseNow.Seed;
 using NurseNow.Helpers;
+using NurseNow.Models;
+using NurseNow.Seed;
 using NurseNow.Services;
 using NurseNow.Settings;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // =============================
-// 1️⃣ Database Configuration
+// Database
 // =============================
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
@@ -21,7 +21,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     ));
 
 // =============================
-// 2️⃣ Identity Configuration
+// Identity
 // =============================
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
@@ -35,10 +35,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // =============================
-// 3️⃣ JWT Authentication
+// JWT Authentication
 // =============================
 var jwtSettings = builder.Configuration.GetSection("JWT");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]);
+var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -64,31 +64,26 @@ builder.Services.AddAuthentication(options =>
 });
 
 // =============================
-// 4️⃣ CORS (UPDATED)
+// CORS
 // =============================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrWhiteSpace(origin))
-                    return false;
-
-                return Uri.TryCreate(origin, UriKind.Absolute, out var uri)
-                       && (uri.Host == "localhost" || uri.Host == "127.0.0.1");
-            })
+            .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
 // =============================
-// 5️⃣ Controllers & Swagger
+// Controllers + Swagger
 // =============================
 builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
+
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -98,7 +93,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Description = "Enter 'Bearer' [space] and then your valid token."
+        Description = "Enter your JWT token."
     });
 
     options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
@@ -118,7 +113,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // =============================
-// 6️⃣ Services
+// Services
 // =============================
 builder.Services.AddScoped<JwtService>();
 
@@ -129,13 +124,10 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddHostedService<NotificationSchedulerService>();
 
-// =============================
-// 7️⃣ Build App
-// =============================
 var app = builder.Build();
 
 // =============================
-// 8️⃣ Seed Data
+// Seed Data
 // =============================
 using (var scope = app.Services.CreateScope())
 {
@@ -147,20 +139,22 @@ using (var scope = app.Services.CreateScope())
     await ServiceCatalogSeeder.SeedServiceCatalogAsync(context);
 }
 
+// =============================
 // Stripe
+// =============================
 Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
 // =============================
-// 9️⃣ Middleware
+// Middleware
 // =============================
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
-
-app.UseCors("AllowFrontend"); // ✔ مهم جدًا
-
 app.UseStaticFiles();
+
+app.UseRouting();
+
+app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

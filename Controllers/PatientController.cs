@@ -618,7 +618,6 @@ namespace NurseNow.Controllers
                 status = booking.Status
             });
         }
-
         [HttpPost("payments/create-intent/{bookingId}")]
         public async Task<IActionResult> CreatePaymentIntent(int bookingId)
         {
@@ -647,11 +646,12 @@ namespace NurseNow.Controllers
             {
                 Amount = (long)(booking.Service.Price * 100),
                 Currency = "usd",
+                PaymentMethodTypes = new List<string> { "card" },
                 Metadata = new Dictionary<string, string>
-                {
-                    { "bookingId", bookingId.ToString() },
-                    { "patientId", patientId }
-                }
+        {
+            { "bookingId", bookingId.ToString() },
+            { "patientId", patientId }
+        }
             };
 
             var service = new PaymentIntentService();
@@ -662,7 +662,6 @@ namespace NurseNow.Controllers
                 clientSecret = paymentIntent.ClientSecret
             });
         }
-
         [HttpPost("payments/confirm/{bookingId}")]
         public async Task<IActionResult> ConfirmPayment(int bookingId)
         {

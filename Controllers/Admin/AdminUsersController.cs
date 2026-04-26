@@ -3,14 +3,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
-using NurseNow.DTOs.Admin;
 using NurseNow.Models;
 
-namespace NurseNow.Controllers
+namespace NurseNow.Controllers.Admin
 {
-    [Route("api/admin/users")]
     [ApiController]
-    [Authorize]
+    [Route("api/admin/users")]
+    [Authorize(Roles = "Administrator")]
     public class AdminUsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -24,131 +23,141 @@ namespace NurseNow.Controllers
             _userManager = userManager;
         }
 
-        // =====================================================
-        // GET: /api/admin/users?role=Patient&status=Active&search=ali
-        // =====================================================
+        [HttpGet]
         [HttpGet]
         public async Task<IActionResult> GetUsers(
-            [FromQuery] string? role,
-            [FromQuery] string? status,
-            [FromQuery] string? search)
+         [FromQuery] string type = "Patient",
+         [FromQuery] string? search = null,
+         [FromQuery] string? status = null)
         {
-            var users = await _context.Users
-                .Where(u => u.RoleType == "Nurse" || u.RoleType == "Patient")
-                .OrderByDescending(u => u.CreatedAt)
-                .ToListAsync();
+            var query = _context.Users.AsQueryable();
 
-            var nurseProfiles = await _context.NurseProfiles.ToListAsync();
-            var patientProfiles = await _context.PatientProfiles.ToListAsync();
-
-            var result = users.Select(u =>
+            if (type == "Nurse")
             {
-                var nurseProfile = nurseProfiles.FirstOrDefault(x => x.UserId == u.Id);
-                var patientProfile = patientProfiles.FirstOrDefault(x => x.UserId == u.Id);
-
-                var phone = u.RoleType == "Nurse"
-                    ? (nurseProfile?.PhoneNumber ?? "-")
-                    : (patientProfile?.PhoneNumber ?? "-");
-
-                return new AdminUserDto
-                {
-                    Id = u.Id,
-                    UserCode = u.RoleType == "Nurse" ? $"N-{u.Id}" : $"P-{u.Id}",
-                    FullName = u.FullName ?? "",
-                    Email = u.Email ?? "",
-                    Phone = string.IsNullOrWhiteSpace(phone) ? "-" : phone,
-                    JoinDate = u.CreatedAt == default ? null : u.CreatedAt,
-                    Status = string.IsNullOrWhiteSpace(u.AccountStatus) ? "Active" : u.AccountStatus,
-                    Role = u.RoleType
-                };
-            });
-
-            if (!string.IsNullOrWhiteSpace(role) && role != "All")
-            {
-                result = result.Where(x => x.Role == role);
+                query = query.Where(u =>
+                    u.RoleType == "Nurse" &&
+                    _context.NurseProfiles.Any(n =>
+                        n.UserId == u.Id &&
+                        n.VerificationStatus == "Approved"));
             }
-
-            if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            else
             {
-                result = result.Where(x => x.Status == status);
+                query = query.Where(u => u.RoleType == "Patient");
             }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var keyword = search.ToLower();
-                result = result.Where(x =>
-                    x.FullName.ToLower().Contains(keyword) ||
-                    x.Email.ToLower().Contains(keyword));
+                query = query.Where(u =>
+                    u.FullName.Contains(search) ||
+                    u.Email.Contains(search));
             }
 
-            return Ok(result.ToList());
-        }
-
-        // =====================================================
-        // GET: /api/admin/users/{id}
-        // =====================================================
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetUserDetails(string id)
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == id && (u.RoleType == "Nurse" || u.RoleType == "Patient"));
-
-            if (user == null)
-                return NotFound(new { message = "User not found." });
-
-            var nurseProfile = await _context.NurseProfiles
-                .FirstOrDefaultAsync(x => x.UserId == id);
-
-            var patientProfile = await _context.PatientProfiles
-                .FirstOrDefaultAsync(x => x.UserId == id);
-
-            var phone = user.RoleType == "Nurse"
-                ? (nurseProfile?.PhoneNumber ?? "-")
-                : (patientProfile?.PhoneNumber ?? "-");
-
-            var address = user.RoleType == "Nurse"
-                ? nurseProfile?.Address
-                : patientProfile?.Address;
-
-            var result = new AdminUserDetailsDto
+            if (!string.IsNullOrWhiteSpace(status) && status != "All")
             {
-                Id = user.Id,
-                UserCode = user.RoleType == "Nurse" ? $"N-{user.Id}" : $"P-{user.Id}",
-                FullName = user.FullName ?? "",
-                Email = user.Email ?? "",
-                Phone = string.IsNullOrWhiteSpace(phone) ? "-" : phone,
-                JoinDate = user.CreatedAt == default ? null : user.CreatedAt,
-                Status = string.IsNullOrWhiteSpace(user.AccountStatus) ? "Active" : user.AccountStatus,
-                Role = user.RoleType,
-                Address = string.IsNullOrWhiteSpace(address) ? "-" : address
-            };
+                query = query.Where(u => u.AccountStatus == status);
+            }
 
-            return Ok(result);
+            var users = await query
+                .OrderByDescending(u => u.CreatedAt)
+                .Select(u => new
+                {
+                    userId = u.Id,
+                    name = u.FullName,
+                    email = u.Email,
+                    phone = u.PhoneNumber,
+                    joinDate = u.CreatedAt,
+                    status = u.AccountStatus,
+                    roleType = u.RoleType
+                })
+                .ToListAsync();
+
+            return Ok(users);
         }
 
-        // =====================================================
-        // PUT: /api/admin/users/{id}/toggle-status
-        // =====================================================
-        [HttpPut("{id}/toggle-status")]
-        public async Task<IActionResult> ToggleUserStatus(string id)
+        [HttpGet("{userId}")]
+        public async Task<IActionResult> GetUserDetails(string userId)
         {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == id && (u.RoleType == "Nurse" || u.RoleType == "Patient"));
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
-                return NotFound(new { message = "User not found." });
+                return NotFound(new { message = "User not found" });
 
-            var currentStatus = string.IsNullOrWhiteSpace(user.AccountStatus)
+            object? profile = null;
+
+            if (user.RoleType == "Patient")
+            {
+                profile = await _context.PatientProfiles
+                    .Where(p => p.UserId == userId)
+                    .Select(p => new
+                    {
+                        p.PhoneNumber,
+                        p.Gender,
+                        p.DateOfBirth,
+                        p.BloodType,
+                        p.Governorate,
+                        p.Area,
+                        p.Address,
+                        p.Conditions,
+                        p.Allergies,
+                        p.Notes
+                    })
+                    .FirstOrDefaultAsync();
+            }
+
+            if (user.RoleType == "Nurse")
+            {
+                profile = await _context.NurseProfiles
+                    .Where(n => n.UserId == userId)
+                    .Select(n => new
+                    {
+                        n.PhoneNumber,
+                        n.Location,
+                        n.Address,
+                        n.Specialization,
+                        n.ExperienceYears,
+                        n.LicenseNumber,
+                        n.VerificationStatus,
+                        n.Bio
+                    })
+                    .FirstOrDefaultAsync();
+            }
+
+            return Ok(new
+            {
+                userId = user.Id,
+                fullName = user.FullName,
+                email = user.Email,
+                phoneNumber = user.PhoneNumber,
+                roleType = user.RoleType,
+                accountStatus = user.AccountStatus,
+                createdAt = user.CreatedAt,
+                lastLoginAt = user.LastLoginAt,
+                profile
+            });
+        }
+
+        [HttpPut("{userId}/toggle-status")]
+        public async Task<IActionResult> ToggleUserStatus(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            user.AccountStatus = user.AccountStatus == "Suspended"
                 ? "Active"
-                : user.AccountStatus;
+                : "Suspended";
 
-            user.AccountStatus = currentStatus == "Suspended" ? "Active" : "Suspended";
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                return BadRequest(result.Errors);
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "User Status Updated",
-                Description = $"User {user.FullName} status changed to {user.AccountStatus}.",
-                ActivityType = "Users",
+                Title = "User status updated",
+                Description = $"{user.FullName} status changed to {user.AccountStatus}.",
+                ActivityType = "UserManagement",
                 CreatedAt = DateTime.UtcNow
             });
 
@@ -156,48 +165,44 @@ namespace NurseNow.Controllers
 
             return Ok(new
             {
-                message = "User status updated successfully.",
+                message = $"User status changed to {user.AccountStatus}",
                 status = user.AccountStatus
             });
         }
 
-        // =====================================================
-        // PUT: /api/admin/users/{id}/reset-password
-        // =====================================================
-        [HttpPut("{id}/reset-password")]
-        public async Task<IActionResult> ResetUserPassword(string id, [FromBody] ResetUserPasswordDto dto)
+        [HttpPut("{userId}/reset-password")]
+        public async Task<IActionResult> ResetUserPassword(string userId, ResetUserPasswordDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.NewPassword))
-                return BadRequest(new { message = "New password is required." });
+                return BadRequest(new { message = "New password is required" });
 
-            var user = await _userManager.FindByIdAsync(id);
+            var user = await _userManager.FindByIdAsync(userId);
 
-            if (user == null || (user.RoleType != "Nurse" && user.RoleType != "Patient"))
-                return NotFound(new { message = "User not found." });
+            if (user == null)
+                return NotFound(new { message = "User not found" });
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var resetResult = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
+            var result = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
 
-            if (!resetResult.Succeeded)
-            {
-                return BadRequest(new
-                {
-                    message = "Failed to reset password.",
-                    errors = resetResult.Errors.Select(e => e.Description)
-                });
-            }
+            if (!result.Succeeded)
+                return BadRequest(result.Errors);
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "Password Reset",
-                Description = $"Password reset for user {user.FullName}.",
-                ActivityType = "Users",
+                Title = "User password reset",
+                Description = $"{user.FullName} password was reset by admin.",
+                ActivityType = "UserManagement",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Password reset successfully." });
+            return Ok(new { message = "Password reset successfully" });
         }
+    }
+
+    public class ResetUserPasswordDto
+    {
+        public string NewPassword { get; set; } = "";
     }
 }

@@ -2,14 +2,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
-using NurseNow.DTOs.Admin;
 using NurseNow.Models;
 
-namespace NurseNow.Controllers
+namespace NurseNow.Controllers.Admin
 {
-    [Route("api/admin/nurse-verifications")]
     [ApiController]
-    [Authorize]
+    [Route("api/admin/nurse-verification")]
+    [Authorize(Roles = "Administrator")]
     public class AdminNurseVerificationController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -19,201 +18,140 @@ namespace NurseNow.Controllers
             _context = context;
         }
 
-        // =====================================================
-        // GET: /api/admin/nurse-verifications
-        // List nurses for verification table
-        // =====================================================
         [HttpGet]
-        public async Task<IActionResult> GetNurseVerifications(
-     [FromQuery] string? search,
-     [FromQuery] string? status)
+        public async Task<IActionResult> GetPendingNurses([FromQuery] string? search)
         {
-            var query =
-                from u in _context.Users
-                join np in _context.NurseProfiles on u.Id equals np.UserId into nurseProfiles
-                from np in nurseProfiles.DefaultIfEmpty()
-                where u.RoleType == "Nurse"
-                select new { u, np };
+            var query = _context.NurseProfiles
+                .Include(n => n.User)
+                .Where(n => n.VerificationStatus == "Pending")
+                .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
-                var keyword = search.ToLower();
-
-                query = query.Where(x =>
-                    (x.u.FullName != null && x.u.FullName.ToLower().Contains(keyword)) ||
-                    (x.u.Email != null && x.u.Email.ToLower().Contains(keyword)));
-            }
-
-            if (!string.IsNullOrWhiteSpace(status) && status != "All")
-            {
-                query = query.Where(x => x.u.AdminApprovalStatus == status);
+                query = query.Where(n =>
+                    n.User.FullName.Contains(search) ||
+                    n.User.Email.Contains(search));
             }
 
             var nurses = await query
-                .OrderByDescending(x => x.u.CreatedAt)
-                .Select(x => new NurseVerificationDto
+                .OrderByDescending(n => n.NurseProfileId)
+                .Select(n => new
                 {
-                    Id = x.u.Id,
-                    NurseId = x.u.Id,
-                    FullName = x.u.FullName ?? "",
-                    Email = x.u.Email ?? "",
-                    Phone = x.np != null && !string.IsNullOrWhiteSpace(x.np.PhoneNumber)
-                        ? x.np.PhoneNumber
-                        : "-",
-                    RegistrationDate = x.u.CreatedAt == default ? null : x.u.CreatedAt,
-                    Status = string.IsNullOrWhiteSpace(x.u.AdminApprovalStatus)
-                        ? "Pending"
-                        : x.u.AdminApprovalStatus
+                    nurseProfileId = n.NurseProfileId,
+                    nurseId = n.UserId,
+                    name = n.User.FullName,
+                    email = n.User.Email,
+                    phone = n.PhoneNumber,
+                    registrationDate = n.User.CreatedAt,
+                    status = n.VerificationStatus
                 })
                 .ToListAsync();
 
             return Ok(nurses);
         }
 
-        // =====================================================
-        // GET: /api/admin/nurse-verifications/{id}
-        // Review popup details
-        // =====================================================
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetNurseVerificationDetails(string id)
+        [HttpGet("{nurseProfileId}")]
+        public async Task<IActionResult> GetNurseDetails(int nurseProfileId)
         {
-            var nurseData = await (
-                from u in _context.Users
-                join np in _context.NurseProfiles on u.Id equals np.UserId into nurseProfiles
-                from np in nurseProfiles.DefaultIfEmpty()
-                where u.Id == id && u.RoleType == "Nurse"
-                select new { u, np }
-            ).FirstOrDefaultAsync();
+            var nurse = await _context.NurseProfiles
+                .Include(n => n.User)
+                .FirstOrDefaultAsync(n => n.NurseProfileId == nurseProfileId);
 
-            if (nurseData == null)
-                return NotFound(new { message = "Nurse not found." });
+            if (nurse == null)
+                return NotFound(new { message = "Nurse not found" });
 
-            var documents = await _context.Set<NurseDocument>()
-                .Where(d => d.NurseId == id)
-                .Select(d => new NurseVerificationDocumentDto
+            var documents = await _context.NurseDocuments
+                .Where(d => d.NurseId == nurse.UserId)
+                .Select(d => new
                 {
-                    Id = d.Id,
-                    Name = d.DocumentName,
-                    FileUrl = d.FileUrl
+                    id = d.Id,
+                    documentName = d.DocumentName,
+                    fileUrl = d.FileUrl
                 })
                 .ToListAsync();
 
-            var result = new NurseVerificationDetailsDto
+            return Ok(new
             {
-                Id = nurseData.u.Id,
-                NurseId = nurseData.u.Id,
-                FullName = nurseData.u.FullName ?? "",
-                Email = nurseData.u.Email ?? "",
-                Phone = nurseData.np != null && !string.IsNullOrWhiteSpace(nurseData.np.PhoneNumber)
-                    ? nurseData.np.PhoneNumber
-                    : "-",
-                RegistrationDate = nurseData.u.CreatedAt == default ? null : nurseData.u.CreatedAt,
-                Status = string.IsNullOrWhiteSpace(nurseData.u.AdminApprovalStatus)
-                    ? "Pending"
-                    : nurseData.u.AdminApprovalStatus,
-                RejectionReason = nurseData.u.RejectionReason,
-                Documents = documents
-            };
-
-            return Ok(result);
+                nurseProfileId = nurse.NurseProfileId,
+                nurseId = nurse.UserId,
+                fullName = nurse.User.FullName,
+                email = nurse.User.Email,
+                phoneNumber = nurse.PhoneNumber,
+                location = nurse.Location,
+                address = nurse.Address,
+                specialization = nurse.Specialization,
+                experienceYears = nurse.ExperienceYears,
+                licenseNumber = nurse.LicenseNumber,
+                nationalId = nurse.NationalId,
+                bio = nurse.Bio,
+                status = nurse.VerificationStatus,
+                rejectionReason = nurse.RejectionReason,
+                registrationDate = nurse.User.CreatedAt,
+                profileImagePath = nurse.ProfileImagePath,
+                certificatePath = nurse.CertificatePath,
+                nationalIdImagePath = nurse.NationalIdImagePath,
+                documents
+            });
         }
-        // =====================================================
-        // PUT: /api/admin/nurse-verifications/{id}/approve
-        // =====================================================
-        [HttpPut("{id}/approve")]
-        public async Task<IActionResult> ApproveNurseVerification(string id)
+
+        [HttpPut("{nurseProfileId}/approve")]
+        public async Task<IActionResult> ApproveNurse(int nurseProfileId)
         {
-            var nurse = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == id && u.RoleType == "Nurse");
+            var nurse = await _context.NurseProfiles
+                .Include(n => n.User)
+                .FirstOrDefaultAsync(n => n.NurseProfileId == nurseProfileId);
 
             if (nurse == null)
-                return NotFound(new { message = "Nurse not found." });
+                return NotFound(new { message = "Nurse not found" });
 
-            nurse.AdminApprovalStatus = "Approved";
+            nurse.VerificationStatus = "Approved";
             nurse.RejectionReason = null;
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "Nurse Approved",
-                Description = $"Nurse {nurse.FullName} has been approved.",
+                Title = "Nurse verification approved",
+                Description = $"{nurse.User.FullName} has been approved.",
                 ActivityType = "Verification",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            _context.Notifications.Add(new Notification
-            {
-                UserId = nurse.Id,
-                Title = "Verification Approved",
-                Message = "Your nurse verification has been approved.",
-                Type = "Verification",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Nurse approved successfully." });
+            return Ok(new { message = "Nurse approved successfully" });
         }
 
-        // =====================================================
-        // PUT: /api/admin/nurse-verifications/{id}/reject
-        // =====================================================
-        [HttpPut("{id}/reject")]
-        public async Task<IActionResult> RejectNurseVerification(
-            string id,
-            [FromBody] RejectNurseVerificationDto dto)
+        [HttpPut("{nurseProfileId}/reject")]
+        public async Task<IActionResult> RejectNurse(int nurseProfileId, RejectNurseDto dto)
         {
-            var nurse = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == id && u.RoleType == "Nurse");
+            var nurse = await _context.NurseProfiles
+                .Include(n => n.User)
+                .FirstOrDefaultAsync(n => n.NurseProfileId == nurseProfileId);
 
             if (nurse == null)
-                return NotFound(new { message = "Nurse not found." });
+                return NotFound(new { message = "Nurse not found" });
 
-            if (string.IsNullOrWhiteSpace(dto.Reason))
-                return BadRequest(new { message = "Rejection reason is required." });
+            if (string.IsNullOrWhiteSpace(dto.RejectionReason))
+                return BadRequest(new { message = "Rejection reason is required" });
 
-            nurse.AdminApprovalStatus = "Rejected";
-            nurse.RejectionReason = dto.Reason;
+            nurse.VerificationStatus = "Rejected";
+            nurse.RejectionReason = dto.RejectionReason;
 
             _context.AdminActivityLogs.Add(new AdminActivityLog
             {
-                Title = "Nurse Rejected",
-                Description = $"Nurse {nurse.FullName} has been rejected. Reason: {dto.Reason}",
+                Title = "Nurse verification rejected",
+                Description = $"{nurse.User.FullName} has been rejected. Reason: {dto.RejectionReason}",
                 ActivityType = "Verification",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            _context.Notifications.Add(new Notification
-            {
-                UserId = nurse.Id,
-                Title = "Verification Rejected",
-                Message = $"Your nurse verification has been rejected. Reason: {dto.Reason}",
-                Type = "Verification",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Nurse rejected successfully." });
+            return Ok(new { message = "Nurse rejected successfully" });
         }
+    }
 
-        // =====================================================
-        // GET: /api/admin/nurse-verifications/{id}/documents/{documentId}
-        // =====================================================
-        [HttpGet("{id}/documents/{documentId}")]
-        public async Task<IActionResult> GetNurseDocument(string id, int documentId)
-        {
-            var document = await _context.Set<NurseDocument>()
-                .FirstOrDefaultAsync(d => d.Id == documentId && d.NurseId == id);
-
-            if (document == null)
-                return NotFound(new { message = "Document not found." });
-
-            return Ok(new
-            {
-                id = document.Id,
-                name = document.DocumentName,
-                fileUrl = document.FileUrl
-            });
-        }
+    public class RejectNurseDto
+    {
+        public string RejectionReason { get; set; } = "";
     }
 }
