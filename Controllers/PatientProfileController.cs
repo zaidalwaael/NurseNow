@@ -51,7 +51,8 @@ namespace NurseNow.Controllers
                 address = profile.Address,
                 conditions = profile.Conditions,
                 allergies = profile.Allergies,
-                notes = profile.Notes
+                notes = profile.Notes        
+
             });
         }
 

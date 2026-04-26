@@ -35,6 +35,7 @@ namespace NurseNow.Controllers.Admin
             });
         }
 
+
         [HttpPost("send")]
         public async Task<IActionResult> SendNotification(SendAdminNotificationDto dto)
         {
@@ -101,4 +102,8 @@ namespace NurseNow.Controllers.Admin
         public string Title { get; set; } = "";
         public string Message { get; set; } = "";
     }
+
+
+
+
 }
