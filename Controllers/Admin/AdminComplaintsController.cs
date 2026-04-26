@@ -2,14 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Data;
-using NurseNow.DTOs.Admin;
-using NurseNow.Models;
 
 namespace NurseNow.Controllers.Admin
 {
     [ApiController]
     [Route("api/admin/complaints")]
-    [Authorize]
+    [Authorize(Roles = "Administrator")]
     public class AdminComplaintsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -19,158 +17,136 @@ namespace NurseNow.Controllers.Admin
             _context = context;
         }
 
-        // =====================================================
-        // GET: /api/admin/complaints?search=john&status=Open
-        // =====================================================
         [HttpGet]
-        public async Task<IActionResult> GetComplaints(
-            [FromQuery] string? search,
-            [FromQuery] string? status)
+        public async Task<IActionResult> GetComplaints(string? search = "", string? status = "")
         {
             var query = _context.Complaints
                 .Include(c => c.User)
                 .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(c =>
+                    c.User.FullName.Contains(search) ||
+                    c.User.Email.Contains(search) ||
+                    c.Subject.Contains(search) ||
+                    c.Category.Contains(search));
+            }
 
             if (!string.IsNullOrWhiteSpace(status) && status != "All")
             {
                 query = query.Where(c => c.Status == status);
             }
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var keyword = search.ToLower();
-
-                query = query.Where(c =>
-                    (c.Subject != null && c.Subject.ToLower().Contains(keyword)) ||
-                    (c.Category != null && c.Category.ToLower().Contains(keyword)) ||
-                    (c.User.FullName != null && c.User.FullName.ToLower().Contains(keyword)));
-            }
-
             var complaints = await query
                 .OrderByDescending(c => c.CreatedAt)
-                .Select(c => new ComplaintListDto
+                .Select(c => new
                 {
-                    ComplaintId = c.ComplaintId,
-                    ComplaintCode = $"C{c.ComplaintId:D3}",
-                    SubmittedBy = $"{c.User.FullName} ({c.User.RoleType})",
-                    Category = c.Category,
-                    Subject = c.Subject,
-                    CreatedAt = c.CreatedAt,
-                    Status = c.Status
+                    complaintId = c.ComplaintId,
+                    submittedBy = c.User.FullName,
+                    userRole = c.User.RoleType,
+                    category = c.Category,
+                    subject = c.Subject,
+                    date = c.CreatedAt,
+                    status = c.Status,
+                    isUrgent = c.IsUrgent
                 })
                 .ToListAsync();
 
             return Ok(complaints);
         }
 
-        // =====================================================
-        // GET: /api/admin/complaints/{id}
-        // =====================================================
         [HttpGet("{id}")]
-        public async Task<IActionResult> GetComplaintById(int id)
+        public async Task<IActionResult> GetComplaintDetails(int id)
         {
             var complaint = await _context.Complaints
                 .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ComplaintId == id);
 
             if (complaint == null)
-                return NotFound(new { message = "Complaint not found." });
+                return NotFound(new { message = "Complaint not found" });
 
-            var result = new ComplaintDetailsDto
+            return Ok(new
             {
-                ComplaintId = complaint.ComplaintId,
-                ComplaintCode = $"C{complaint.ComplaintId:D3}",
-                SubmittedBy = $"{complaint.User.FullName} ({complaint.User.RoleType})",
-                UserEmail = complaint.User.Email ?? "",
-                Category = complaint.Category,
-                Subject = complaint.Subject,
-                Description = complaint.Description,
-                Status = complaint.Status,
-                CreatedAt = complaint.CreatedAt,
-                AdminResponse = complaint.AdminResponse,
-                RespondedAt = complaint.RespondedAt
-            };
-
-            return Ok(result);
+                complaintId = complaint.ComplaintId,
+                submittedBy = new
+                {
+                    userId = complaint.UserId,
+                    fullName = complaint.User.FullName,
+                    email = complaint.User.Email,
+                    role = complaint.User.RoleType,
+                    phone = complaint.User.PhoneNumber
+                },
+                category = complaint.Category,
+                subject = complaint.Subject,
+                description = complaint.Description,
+                isUrgent = complaint.IsUrgent,
+                status = complaint.Status,
+                adminResponse = complaint.AdminResponse,
+                createdAt = complaint.CreatedAt,
+                respondedAt = complaint.RespondedAt
+            });
         }
 
-        // =====================================================
-        // PUT: /api/admin/complaints/{id}/respond
-        // =====================================================
-        [HttpPut("{id}/respond")]
-        public async Task<IActionResult> RespondToComplaint(int id, [FromBody] RespondComplaintDto dto)
+        [HttpPut("{id}/response")]
+        public async Task<IActionResult> SendResponse(int id, ComplaintResponseDto dto)
         {
             var complaint = await _context.Complaints
+                .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ComplaintId == id);
 
             if (complaint == null)
-                return NotFound(new { message = "Complaint not found." });
+                return NotFound(new { message = "Complaint not found" });
 
-            if (string.IsNullOrWhiteSpace(dto.Response))
-                return BadRequest(new { message = "Response is required." });
+            if (string.IsNullOrWhiteSpace(dto.AdminResponse))
+                return BadRequest(new { message = "Response is required" });
 
-            complaint.AdminResponse = dto.Response;
+            complaint.AdminResponse = dto.AdminResponse;
             complaint.RespondedAt = DateTime.UtcNow;
+            complaint.Status = "In Progress";
 
-            if (complaint.Status == "Open")
-                complaint.Status = "In Progress";
-
-            _context.AdminActivityLogs.Add(new AdminActivityLog
+            _context.AdminActivityLogs.Add(new Models.AdminActivityLog
             {
-                Title = "Complaint Responded",
-                Description = $"Complaint #{complaint.ComplaintId} received an admin response.",
-                ActivityType = "Complaints",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            _context.Notifications.Add(new Notification
-            {
-                UserId = complaint.UserId,
-                Title = "Complaint Update",
-                Message = $"Your complaint #{complaint.ComplaintId} has received a response from admin.",
-                Type = "Complaint",
+                Title = "Complaint response sent",
+                Description = $"Admin responded to complaint #{complaint.ComplaintId}: {complaint.Subject}",
+                ActivityType = "Complaint",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Response sent successfully." });
+            return Ok(new { message = "Response sent successfully" });
         }
 
-        // =====================================================
-        // PUT: /api/admin/complaints/{id}/resolve
-        // =====================================================
         [HttpPut("{id}/resolve")]
-        public async Task<IActionResult> ResolveComplaint(int id)
+        public async Task<IActionResult> MarkAsResolved(int id)
         {
             var complaint = await _context.Complaints
+                .Include(c => c.User)
                 .FirstOrDefaultAsync(c => c.ComplaintId == id);
 
             if (complaint == null)
-                return NotFound(new { message = "Complaint not found." });
+                return NotFound(new { message = "Complaint not found" });
 
             complaint.Status = "Resolved";
+            complaint.RespondedAt ??= DateTime.UtcNow;
 
-            _context.AdminActivityLogs.Add(new AdminActivityLog
+            _context.AdminActivityLogs.Add(new Models.AdminActivityLog
             {
-                Title = "Complaint Resolved",
-                Description = $"Complaint #{complaint.ComplaintId} marked as resolved.",
-                ActivityType = "Complaints",
-                CreatedAt = DateTime.UtcNow
-            });
-
-            _context.Notifications.Add(new Notification
-            {
-                UserId = complaint.UserId,
-                Title = "Complaint Resolved",
-                Message = $"Your complaint #{complaint.ComplaintId} has been marked as resolved.",
-                Type = "Complaint",
+                Title = "Complaint resolved",
+                Description = $"Complaint #{complaint.ComplaintId} has been marked as resolved.",
+                ActivityType = "Complaint",
                 CreatedAt = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Complaint marked as resolved." });
+            return Ok(new { message = "Complaint marked as resolved" });
         }
+    }
+
+    public class ComplaintResponseDto
+    {
+        public string AdminResponse { get; set; } = "";
     }
 }

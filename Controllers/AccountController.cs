@@ -15,8 +15,9 @@ namespace NurseNow.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public AccountController(ApplicationDbContext context,
-                                 UserManager<ApplicationUser> userManager)
+        public AccountController(
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager)
         {
             _context = context;
             _userManager = userManager;
@@ -39,8 +40,14 @@ namespace NurseNow.Controllers
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            // 🔵 إذا Nurse
-            if (roles.Contains("Nurse"))
+            var role = roles.FirstOrDefault();
+
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                role = user.RoleType;
+            }
+
+            if (role == "Nurse")
             {
                 var nurseProfile = await _context.NurseProfiles
                     .FirstOrDefaultAsync(n => n.UserId == userId);
@@ -50,7 +57,7 @@ namespace NurseNow.Controllers
                     userId = user.Id,
                     fullName = user.FullName,
                     email = user.Email,
-                    role = "Nurse",
+                    role = role,
                     verificationStatus = nurseProfile?.VerificationStatus,
                     specialization = nurseProfile?.Specialization,
                     experienceYears = nurseProfile?.ExperienceYears,
@@ -63,13 +70,12 @@ namespace NurseNow.Controllers
                 });
             }
 
-            // 🟣 Admin أو Patient
             return Ok(new
             {
                 userId = user.Id,
                 fullName = user.FullName,
                 email = user.Email,
-                role = roles.FirstOrDefault()
+                role = role
             });
         }
     }

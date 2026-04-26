@@ -1,21 +1,18 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.WebUtilities;
 using NurseNow.Data;
 using NurseNow.DTOs;
 using NurseNow.Helpers;
 using NurseNow.Models;
-using System.Text;
-using Microsoft.AspNetCore.WebUtilities;
 using NurseNow.Services;
-
+using System.Text;
 
 namespace NurseNow.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
-
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly JwtService _jwtService;
@@ -23,22 +20,27 @@ namespace NurseNow.Controllers
         private readonly IEmailService _emailService;
 
         public AuthController(
-          UserManager<ApplicationUser> userManager,
-          JwtService jwtService,
-          ApplicationDbContext context,
-          IEmailService emailService)
+            UserManager<ApplicationUser> userManager,
+            JwtService jwtService,
+            ApplicationDbContext context,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _jwtService = jwtService;
             _context = context;
             _emailService = emailService;
         }
+
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto model)
         {
             var userExists = await _userManager.FindByEmailAsync(model.Email);
+
             if (userExists != null)
-                return BadRequest("User already exists");
+                return BadRequest(new { message = "User already exists" });
+
+            if (model.Role != "Patient" && model.Role != "Nurse")
+                return BadRequest(new { message = "Invalid role" });
 
             var user = new ApplicationUser
             {
@@ -46,6 +48,10 @@ namespace NurseNow.Controllers
                 Email = model.Email,
                 FullName = model.FullName,
                 RoleType = model.Role,
+                AccountStatus = "Active",
+                AdminRole = "",
+                AdminApprovalStatus = "Active",
+                CreatedAt = DateTime.UtcNow,
                 EmailConfirmed = true
             };
 
@@ -54,7 +60,10 @@ namespace NurseNow.Controllers
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
 
-            await _userManager.AddToRoleAsync(user, model.Role);
+            var roleResult = await _userManager.AddToRoleAsync(user, model.Role);
+
+            if (!roleResult.Succeeded)
+                return BadRequest(roleResult.Errors);
 
             if (model.Role == "Nurse")
             {
@@ -86,35 +95,42 @@ namespace NurseNow.Controllers
 
             await _context.SaveChangesAsync();
 
-
-            return Ok("User registered successfully");
+            return Ok(new { message = "User registered successfully" });
         }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
-                return Unauthorized("Invalid credentials");
+                return Unauthorized(new { message = "Invalid credentials" });
 
             if (user.AccountStatus == "Suspended")
-                return Unauthorized("Your account is suspended");
+                return Unauthorized(new { message = "Your account is suspended" });
 
             var validPassword = await _userManager.CheckPasswordAsync(user, model.Password);
 
             if (!validPassword)
-                return Unauthorized("Invalid credentials");
+                return Unauthorized(new { message = "Invalid credentials" });
 
             var roles = await _userManager.GetRolesAsync(user);
 
+            if (roles == null || roles.Count == 0)
+            {
+                return Unauthorized(new { message = "User has no assigned role" });
+            }
+
+            user.LastLoginAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
 
             var token = _jwtService.GenerateToken(user, roles);
 
             return Ok(new
             {
                 token,
-                user.FullName,
-                user.Email,
+                fullName = user.FullName,
+                email = user.Email,
                 roles
             });
         }
@@ -125,20 +141,22 @@ namespace NurseNow.Controllers
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
+            {
                 return Ok(new
                 {
                     message = "If the email exists, a reset token has been sent."
                 });
+            }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
 
             var emailBody = $@"
-        <h2>Password Reset</h2>
-        <p>You requested to reset your password.</p>
-        <p>Use the following reset token inside the app:</p>
-        <p><strong>{encodedToken}</strong></p>
-        <p>If you did not request this, please ignore this email.</p>";
+                <h2>Password Reset</h2>
+                <p>You requested to reset your password.</p>
+                <p>Use the following reset token inside the app:</p>
+                <p><strong>{encodedToken}</strong></p>
+                <p>If you did not request this, please ignore this email.</p>";
 
             await _emailService.SendEmailAsync(user.Email!, "Reset Password Token", emailBody);
 
@@ -148,27 +166,32 @@ namespace NurseNow.Controllers
             });
         }
 
-
-
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user == null)
-                return BadRequest("Invalid request.");
+                return BadRequest(new { message = "Invalid request." });
 
             string decodedToken;
+
             try
             {
-                decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(model.Token));
+                decodedToken = Encoding.UTF8.GetString(
+                    WebEncoders.Base64UrlDecode(model.Token)
+                );
             }
             catch
             {
-                return BadRequest("Invalid token.");
+                return BadRequest(new { message = "Invalid token." });
             }
 
-            var result = await _userManager.ResetPasswordAsync(user, decodedToken, model.NewPassword);
+            var result = await _userManager.ResetPasswordAsync(
+                user,
+                decodedToken,
+                model.NewPassword
+            );
 
             if (!result.Succeeded)
                 return BadRequest(result.Errors);
@@ -178,12 +201,5 @@ namespace NurseNow.Controllers
                 message = "Password has been reset successfully."
             });
         }
-
-
-
-
     }
-
-
-
 }

@@ -19,7 +19,6 @@ namespace NurseNow.Seed
                 }
             }
 
-            // 🔥 Create Default Admin
             string adminEmail = "admin@nursenow.com";
 
             var existingAdmin = await userManager.FindByEmailAsync(adminEmail);
@@ -32,12 +31,19 @@ namespace NurseNow.Seed
                     Email = adminEmail,
                     FullName = "System Administrator",
                     RoleType = "Administrator",
+                    AccountStatus = "Active",
+                    AdminRole = "SuperAdmin",
+                    AdminApprovalStatus = "Active",
+                    CreatedAt = DateTime.UtcNow,
                     EmailConfirmed = true
                 };
 
-                await userManager.CreateAsync(admin, "Admin@123");
+                var createResult = await userManager.CreateAsync(admin, "Admin@123");
 
-                await userManager.AddToRoleAsync(admin, "Administrator");
+                if (createResult.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(admin, "Administrator");
+                }
             }
         }
     }
