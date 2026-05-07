@@ -43,6 +43,7 @@ namespace NurseNow.Controllers
             {
                 fullName = profile.User.FullName,
                 email = profile.User.Email,
+                phoneNumber = profile.User.PhoneNumber,
                 gender = profile.Gender,
                 dateOfBirth = profile.DateOfBirth,
                 bloodType = profile.BloodType,

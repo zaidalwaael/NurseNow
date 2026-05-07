@@ -40,15 +40,15 @@ namespace NurseNow.Controllers
             if (userExists != null)
                 return BadRequest("User already exists");
 
-            var user = new ApplicationUser
-            {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                RoleType = model.Role,
-                EmailConfirmed = true
-            };
-
+           var user = new ApplicationUser
+{
+    UserName = model.Email,
+    Email = model.Email,
+    FullName = model.FullName,
+    PhoneNumber = model.PhoneNumber,
+    RoleType = model.Role,
+    EmailConfirmed = true
+};
             var result = await _userManager.CreateAsync(user, model.Password);
 
             if (!result.Succeeded)
@@ -118,38 +118,24 @@ namespace NurseNow.Controllers
                 roles
             });
         }
+[HttpPost("forgot-password")]
+public async Task<IActionResult> ForgotPassword(ForgotPasswordDto model)
+{
+    if (model == null || string.IsNullOrWhiteSpace(model.Email))
+        return BadRequest("Email is required.");
 
-        [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword(ForgotPasswordDto model)
-        {
-            var user = await _userManager.FindByEmailAsync(model.Email);
+    var email = model.Email.Trim().ToLower();
 
-            if (user == null)
-                return Ok(new
-                {
-                    message = "If the email exists, a reset token has been sent."
-                });
+    var user = await _userManager.FindByEmailAsync(email);
 
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+    if (user == null)
+        return NotFound("This email is not registered.");
 
-            var emailBody = $@"
-        <h2>Password Reset</h2>
-        <p>You requested to reset your password.</p>
-        <p>Use the following reset token inside the app:</p>
-        <p><strong>{encodedToken}</strong></p>
-        <p>If you did not request this, please ignore this email.</p>";
-
-            await _emailService.SendEmailAsync(user.Email!, "Reset Password Token", emailBody);
-
-            return Ok(new
-            {
-                message = "If the email exists, a reset token has been sent."
-            });
-        }
-
-
-
+    return Ok(new
+    {
+        message = "Reset request received. The Home Nurse team will contact you soon."
+    });
+}
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword(ResetPasswordDto model)
         {
