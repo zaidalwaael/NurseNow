@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+<PropertyGroup><UserSecretsId>NurseNow-Clean-Local</UserSecretsId></PropertyGroup>
+<ItemGroup>
+<ProjectReference Include="../NurseNow.Application/NurseNow.Application.csproj" />
+<ProjectReference Include="../NurseNow.Infrastructure/NurseNow.Infrastructure.csproj" />
+<PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.0" />
+</ItemGroup>
+<ItemGroup><Content Include="App_Data/uploads/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+</Project>

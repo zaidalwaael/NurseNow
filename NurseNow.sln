@@ -1,9 +1,14 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.8.34525.116
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow", "NurseNow.csproj", "{BBCEC469-8E75-47E8-BD82-3F3A21105403}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow.API", "src/NurseNow.API/NurseNow.API.csproj", "{2127262F-BDCC-4CF5-8F7C-CE9A9206E762}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow.Application", "src/NurseNow.Application/NurseNow.Application.csproj", "{56736A0A-CEF5-40FA-949E-29BBA8033037}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow.Domain", "src/NurseNow.Domain/NurseNow.Domain.csproj", "{7E056307-F984-40CB-9EA7-8E21326CBA05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow.Infrastructure", "src/NurseNow.Infrastructure/NurseNow.Infrastructure.csproj", "{5E392E8D-3F9A-46A8-A80D-25F94377AC8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NurseNow.RegressionTests", "tests/NurseNow.RegressionTests/NurseNow.RegressionTests.csproj", "{105DEC1B-9E20-4DC4-A020-8190A24F4749}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,15 +16,25 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{BBCEC469-8E75-47E8-BD82-3F3A21105403}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BBCEC469-8E75-47E8-BD82-3F3A21105403}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BBCEC469-8E75-47E8-BD82-3F3A21105403}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BBCEC469-8E75-47E8-BD82-3F3A21105403}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {86106B69-24EF-45B1-B7B6-5330AF4CED80}
+		{105DEC1B-9E20-4DC4-A020-8190A24F4749}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{105DEC1B-9E20-4DC4-A020-8190A24F4749}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{105DEC1B-9E20-4DC4-A020-8190A24F4749}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{105DEC1B-9E20-4DC4-A020-8190A24F4749}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2127262F-BDCC-4CF5-8F7C-CE9A9206E762}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2127262F-BDCC-4CF5-8F7C-CE9A9206E762}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2127262F-BDCC-4CF5-8F7C-CE9A9206E762}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2127262F-BDCC-4CF5-8F7C-CE9A9206E762}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56736A0A-CEF5-40FA-949E-29BBA8033037}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56736A0A-CEF5-40FA-949E-29BBA8033037}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56736A0A-CEF5-40FA-949E-29BBA8033037}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56736A0A-CEF5-40FA-949E-29BBA8033037}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E056307-F984-40CB-9EA7-8E21326CBA05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E056307-F984-40CB-9EA7-8E21326CBA05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E056307-F984-40CB-9EA7-8E21326CBA05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E056307-F984-40CB-9EA7-8E21326CBA05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5E392E8D-3F9A-46A8-A80D-25F94377AC8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E392E8D-3F9A-46A8-A80D-25F94377AC8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E392E8D-3F9A-46A8-A80D-25F94377AC8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E392E8D-3F9A-46A8-A80D-25F94377AC8E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,28 @@
+PASS: Pagination rejects zero page size
+PASS: Public registration cannot create administrators
+PASS: Bulk read preserves other users' notifications
+PASS: Notification ownership enforced
+PASS: Booked slots excluded; adjacent slots allowed
+PASS: Partially overlapping booking rejected
+PASS: Non-overlapping booking and notification saved
+PASS: Payment without stored intent rejected
+PASS: Intent creation stores payment intent
+PASS: Repeated intent creation reuses stored intent
+PASS: Unverified gateway payment rejected
+PASS: Rejected confirmation does not mark payment paid
+PASS: Verified payment accepted
+PASS: Payment and booking update together
+PASS: Duplicate payment confirmation rejected
+PASS: Payment ownership enforced
+PASS: Unsafe extension and oversized upload rejected
+PASS: Stale booking transition rejected
+PASS: Patient cannot download another user's certificate
+PASS: Nurse can download own certificate
+PASS: File traversal rejected
+PASS: 104 legacy HTTP actions and class authorization retained
+Completed: 22 checks passed. SQLite tests do not certify SQL Server migrations or live Stripe.
+
+PASS: host starts and health endpoint returns 200
+PASS: Swagger generated; 99 paths
+PASS: protected endpoints reject missing authentication
+PASS: HTTP registration rejects Administrator before database access

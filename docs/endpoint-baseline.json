@@ -1,0 +1,839 @@
+[
+  {
+    "controller": "PatientController",
+    "action": "BrowseNurses",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/browse\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetNurseDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/{nurseId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetNurseServices",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/{nurseId}/services\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetAvailableDates",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/{nurseId}/available-dates\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetAvailableSlots",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/{nurseId}/available-slots\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "CreateBookingRequest",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPost(\"bookings\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetPatientAppointments",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"appointments\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetAppointmentDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"appointments/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "CancelAppointment",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"appointments/{bookingId}/cancel\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "CreatePaymentIntent",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPost(\"payments/create-intent/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "ConfirmPayment",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPost(\"payments/confirm/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetPayment",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"payments/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetPaymentSummary",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"payments/summary/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetNurseReviews",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"nurses/{nurseId}/reviews\")]"
+    ]
+  },
+  {
+    "controller": "PatientController",
+    "action": "GetPatientDashboardSummary",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"dashboard-summary\")]"
+    ]
+  },
+  {
+    "controller": "NursePaymentsController",
+    "action": "GetPaymentSummary",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/payments\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"summary\")]"
+    ]
+  },
+  {
+    "controller": "NursePaymentsController",
+    "action": "GetPaymentHistory",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/payments\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"history\")]"
+    ]
+  },
+  {
+    "controller": "NursePaymentsController",
+    "action": "GetPaymentDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/payments\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "AuthController",
+    "action": "Register",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[HttpPost(\"register\")]"
+    ]
+  },
+  {
+    "controller": "AuthController",
+    "action": "Login",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[HttpPost(\"login\")]"
+    ]
+  },
+  {
+    "controller": "AuthController",
+    "action": "ForgotPassword",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[HttpPost(\"forgot-password\")]"
+    ]
+  },
+  {
+    "controller": "AuthController",
+    "action": "ResetPassword",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[HttpPost(\"reset-password\")]"
+    ]
+  },
+  {
+    "controller": "AccountController",
+    "action": "GetCurrentUser",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[Authorize]",
+      "[HttpGet(\"me\")]"
+    ]
+  },
+  {
+    "controller": "NotificationController",
+    "action": "GetNotifications",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "NotificationController",
+    "action": "MarkAsRead",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize]",
+    "attributes": [
+      "[HttpPut(\"{id}/read\")]"
+    ]
+  },
+  {
+    "controller": "NotificationController",
+    "action": "MarkAllAsRead",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize]",
+    "attributes": [
+      "[HttpPut(\"read-all\")]"
+    ]
+  },
+  {
+    "controller": "PatientPaymentsController",
+    "action": "GetPaymentHistory",
+    "classAttributes": "[ApiController]\n[Route(\"api/patient/payments\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"history\")]"
+    ]
+  },
+  {
+    "controller": "PatientPaymentsController",
+    "action": "GetPaymentDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/patient/payments\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "ReviewController",
+    "action": "SubmitReview",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPost]"
+    ]
+  },
+  {
+    "controller": "ReviewController",
+    "action": "DismissReview",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"{bookingId}/dismiss\")]"
+    ]
+  },
+  {
+    "controller": "ReviewController",
+    "action": "RemindReviewLater",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"{bookingId}/later\")]"
+    ]
+  },
+  {
+    "controller": "ReviewController",
+    "action": "GetPendingReview",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"pending\")]"
+    ]
+  },
+  {
+    "controller": "PatientIssuesController",
+    "action": "SubmitIssue",
+    "classAttributes": "[ApiController]\n[Route(\"api/patient/issues\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPost]"
+    ]
+  },
+  {
+    "controller": "PatientIssuesController",
+    "action": "GetMyReports",
+    "classAttributes": "[ApiController]\n[Route(\"api/patient/issues\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"my-reports\")]"
+    ]
+  },
+  {
+    "controller": "PatientIssuesController",
+    "action": "GetIssueDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/patient/issues\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "UpdateProfile",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"update-profile\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetFullProfile",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"profile\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetPersonalInfo",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"profile/personal-info\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "UpdatePersonalInfo",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"profile/personal-info\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetProfessionalDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"profile/professional-details\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "UpdateProfessionalDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"profile/professional-details\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetServiceCatalog",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"service-catalog\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetMyServices",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"services\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "AddService",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPost(\"services\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "UpdateService",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"services/{id}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "DeleteService",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpDelete(\"services/{id}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetWeeklyAvailability",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"weekly-availability\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "AddWeeklyAvailability",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPost(\"weekly-availability\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "DeleteWeeklyAvailability",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpDelete(\"weekly-availability/{id}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetDayDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"availability/day-details\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "OverrideDayAvailability",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPost(\"availability/override\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "BlockDay",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPost(\"availability/block-day\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "RemoveDayOverride",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpDelete(\"availability/override\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetNurseRequests",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"requests\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetRequestDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"requests/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "AcceptRequest",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"requests/{bookingId}/accept\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "DeclineRequest",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"requests/{bookingId}/decline\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetNurseAppointments",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"appointments\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetAppointmentDetailsForNurse",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"appointments/{bookingId}\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "CompleteAppointment",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"appointments/{bookingId}/complete\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "GetMyReviews",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"reviews\")]"
+    ]
+  },
+  {
+    "controller": "NurseController",
+    "action": "CancelAppointmentByNurse",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPut(\"appointments/{bookingId}/cancel\")]"
+    ]
+  },
+  {
+    "controller": "TestController",
+    "action": "Public",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[HttpGet(\"public\")]"
+    ]
+  },
+  {
+    "controller": "TestController",
+    "action": "Protected",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[Authorize]",
+      "[HttpGet(\"protected\")]"
+    ]
+  },
+  {
+    "controller": "TestController",
+    "action": "AdminOnly",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[Authorize(Roles = \"Administrator\")]",
+      "[HttpGet(\"admin-only\")]"
+    ]
+  },
+  {
+    "controller": "TestController",
+    "action": "NurseOnly",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]",
+    "attributes": [
+      "[Authorize(Roles = \"Nurse\")]",
+      "[HttpGet(\"nurse-only\")]"
+    ]
+  },
+  {
+    "controller": "AdminController",
+    "action": "GetNurseDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"nurse-details/{userId}\")]"
+    ]
+  },
+  {
+    "controller": "AdminController",
+    "action": "UpdateNurseStatus",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"verify-nurse/{userId}\")]"
+    ]
+  },
+  {
+    "controller": "AdminController",
+    "action": "GetPendingNurses",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"pending-nurses\")]"
+    ]
+  },
+  {
+    "controller": "NurseProblemsController",
+    "action": "SubmitProblem",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/problems\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpPost]"
+    ]
+  },
+  {
+    "controller": "NurseProblemsController",
+    "action": "GetMyReports",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/problems\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"my-reports\")]"
+    ]
+  },
+  {
+    "controller": "NurseProblemsController",
+    "action": "GetProblemDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/nurse/problems\")]\n[Authorize(Roles = \"Nurse\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "PatientProfileController",
+    "action": "GetPatientProfile",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "PatientProfileController",
+    "action": "UpdatePersonalInfo",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"personal-info\")]"
+    ]
+  },
+  {
+    "controller": "PatientProfileController",
+    "action": "UpdateAddress",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"address\")]"
+    ]
+  },
+  {
+    "controller": "PatientProfileController",
+    "action": "UpdateMedicalInfo",
+    "classAttributes": "[ApiController]\n[Route(\"api/[controller]\")]\n[Authorize(Roles = \"Patient\")]",
+    "attributes": [
+      "[HttpPut(\"medical-info\")]"
+    ]
+  },
+  {
+    "controller": "AdminUsersController",
+    "action": "GetUsers",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/users\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]",
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminUsersController",
+    "action": "GetUserDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/users\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"{userId}\")]"
+    ]
+  },
+  {
+    "controller": "AdminUsersController",
+    "action": "ToggleUserStatus",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/users\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{userId}/toggle-status\")]"
+    ]
+  },
+  {
+    "controller": "AdminUsersController",
+    "action": "ResetUserPassword",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/users\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{userId}/reset-password\")]"
+    ]
+  },
+  {
+    "controller": "AdminComplaintsController",
+    "action": "GetComplaints",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/complaints\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminComplaintsController",
+    "action": "GetComplaintDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/complaints\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "AdminComplaintsController",
+    "action": "SendResponse",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/complaints\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{id}/response\")]"
+    ]
+  },
+  {
+    "controller": "AdminComplaintsController",
+    "action": "MarkAsResolved",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/complaints\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{id}/resolve\")]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsListController",
+    "action": "GetNotifications",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications-list\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsListController",
+    "action": "MarkAsRead",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications-list\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{id}/read\")]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsListController",
+    "action": "MarkAllAsRead",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications-list\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"mark-all-read\")]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsListController",
+    "action": "DeleteNotification",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications-list\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpDelete(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "AdminNurseVerificationController",
+    "action": "GetPendingNurses",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/nurse-verification\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminNurseVerificationController",
+    "action": "GetNurseDetails",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/nurse-verification\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"{nurseProfileId}\")]"
+    ]
+  },
+  {
+    "controller": "AdminNurseVerificationController",
+    "action": "ApproveNurse",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/nurse-verification\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{nurseProfileId}/approve\")]"
+    ]
+  },
+  {
+    "controller": "AdminNurseVerificationController",
+    "action": "RejectNurse",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/nurse-verification\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut(\"{nurseProfileId}/reject\")]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsController",
+    "action": "GetAudienceCounts",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"audience-counts\")]"
+    ]
+  },
+  {
+    "controller": "AdminNotificationsController",
+    "action": "SendNotification",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/notifications\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPost(\"send\")]"
+    ]
+  },
+  {
+    "controller": "AdminManagementController",
+    "action": "GetAdmins",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/management\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminManagementController",
+    "action": "CreateAdmin",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/management\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPost]"
+    ]
+  },
+  {
+    "controller": "AdminManagementController",
+    "action": "DeleteAdmin",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/management\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpDelete(\"{adminId}\")]"
+    ]
+  },
+  {
+    "controller": "AdminPaymentsController",
+    "action": "GetAllTransactions",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/payments\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminPaymentsController",
+    "action": "GetStats",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/payments\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"stats\")]"
+    ]
+  },
+  {
+    "controller": "ServiceRequestsController",
+    "action": "GetAll",
+    "classAttributes": "[Route(\"api/admin/service-requests\")]\n[ApiController]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "ServiceRequestsController",
+    "action": "GetDetails",
+    "classAttributes": "[Route(\"api/admin/service-requests\")]\n[ApiController]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"{id}\")]"
+    ]
+  },
+  {
+    "controller": "AdminDashboardController",
+    "action": "GetDashboardOverview",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/dashboard\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet(\"overview\")]"
+    ]
+  },
+  {
+    "controller": "AdminProfileController",
+    "action": "GetProfile",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/profile\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpGet]"
+    ]
+  },
+  {
+    "controller": "AdminProfileController",
+    "action": "UpdateProfile",
+    "classAttributes": "[ApiController]\n[Route(\"api/admin/profile\")]\n[Authorize(Roles = \"Administrator\")]",
+    "attributes": [
+      "[HttpPut]"
+    ]
+  }
+]
