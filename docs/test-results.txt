@@ -19,10 +19,43 @@ PASS: Stale booking transition rejected
 PASS: Patient cannot download another user's certificate
 PASS: Nurse can download own certificate
 PASS: File traversal rejected
+PASS: Booking read loads related details without tracking entities
+PASS: Repository detail query enforces patient ownership
+PASS: Booking write query returns a tracked entity for Unit of Work
+PASS: Patient appointment filtering and limits preserved
+PASS: Nurse request projection preserves filter and related values
+PASS: Nurse search, service filter, pagination and price projection preserved
+PASS: Nurse search excludes nonmatching records
+PASS: Named read models preserve original notification JSON property names
+PASS: NurseNow.Domain has no EF Core or ASP.NET dependency
+PASS: NurseNow.Application has no EF Core or ASP.NET dependency
+PASS: Repository contracts expose materialized results, not IQueryable or DbSet
+PASS: Repository adds stay staged until Unit of Work saves
+PASS: One Unit of Work persists changes from multiple repositories
+PASS: Uncommitted transaction rolls back all repository writes
+PASS: Bulk notification updates participate in Unit of Work rollback
+PASS: Repository queries honor cancellation
+PASS: Identity role store works with the infrastructure context
+PASS: UserManager validates and hashes passwords without committing early
+PASS: Role assignment can be staged with a new user
+PASS: Identity user, role and business profile persist together
+PASS: Existing Identity password-reset token provider works
+PASS: Password reset persists the new hash and revokes the previous security stamp
+PASS: Password-reset token cannot be reused
+PASS: Identity lockout persists across queries
+PASS: Registration transaction rolls back user, role and profile together
+PASS: SQL Server model matches the existing migration snapshot; no schema change required
+PASS: Registration use case works through repositories and identity port
+PASS: Nurse registration saves role, pending profile and admin activity
+PASS: Duplicate registration rejected
+PASS: Login rejects incorrect password
+PASS: Failed-login counter saved by Unit of Work
+PASS: Login accepts the registered password
+PASS: Successful login persists reset of failed-login counter
+PASS: Reset-password use case accepts existing base64url token format
+PASS: Reset-password use case persists the new password
+PASS: Identity profile update persists through Unit of Work
+PASS: Identity delete and related role/profile cascades remain intact
+PASS: All 23 application services resolve with production dependency injection
 PASS: 104 legacy HTTP actions and class authorization retained
-Completed: 22 checks passed. SQLite tests do not certify SQL Server migrations or live Stripe.
-
-PASS: host starts and health endpoint returns 200
-PASS: Swagger generated; 99 paths
-PASS: protected endpoints reject missing authentication
-PASS: HTTP registration rejects Administrator before database access
+Completed: 60 checks passed. SQLite tests do not certify SQL Server migrations or live Stripe.

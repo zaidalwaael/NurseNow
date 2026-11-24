@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using NurseNow.Application.Repositories;
 using NurseNow.Application.Abstractions;
 using NurseNow.Application.Common;
 
@@ -6,37 +6,24 @@ namespace NurseNow.Application.Features.Admin;
 public sealed class ServiceRequestsService : ApplicationService
 {
     private readonly IRequestContext _requestContext;
-    private readonly IApplicationDbContext _context;
-    public ServiceRequestsService(IApplicationDbContext context, IRequestContext requestContext)
+    private readonly IBookingRepository _bookings;
+    public ServiceRequestsService(IBookingRepository bookings, IRequestContext requestContext)
     {
         _requestContext = requestContext;
-        _context = context;
+        _bookings = bookings;
     }
 
     // ✅ 1. Get All Requests (مع Search + Filter)
     public async Task<OperationResult> GetAll(string? search = "", string? status = "")
     {
-        var query = _context.Bookings.AsNoTracking().Include(b => b.Patient).Include(b => b.Nurse).Include(b => b.Service).ThenInclude(s => s.ServiceCatalog).AsQueryable();
-        // 🔍 Search
-        if (!string.IsNullOrEmpty(search))
-        {
-            query = query.Where(b => b.Patient.FullName.Contains(search) || b.Nurse.FullName.Contains(search) || b.Service.ServiceCatalog.Name.Contains(search));
-        }
-
-        // 🎯 Filter by Status
-        if (!string.IsNullOrEmpty(status) && status != "All")
-        {
-            query = query.Where(b => b.Status == status);
-        }
-
-        var data = await query.OrderByDescending(b => b.CreatedAt).Select(b => new { requestId = b.BookingId, patientName = b.Patient.FullName, nurseName = b.Nurse != null ? b.Nurse.FullName : "Unassigned", serviceType = b.Service.ServiceCatalog.Name, dateTime = b.BookingDate, status = b.Status }).ToListAsync(_requestContext.CancellationToken);
+        var data = await _bookings.SearchRequestsAsync(search, status, _requestContext.CancellationToken);
         return Ok(data);
     }
 
     // ✅ 2. Get Request Details
     public async Task<OperationResult> GetDetails(int id)
     {
-        var booking = await _context.Bookings.AsNoTracking().Include(b => b.Patient).Include(b => b.Nurse).Include(b => b.Service).ThenInclude(s => s.ServiceCatalog).Include(b => b.Payment).FirstOrDefaultAsync(b => b.BookingId == id, _requestContext.CancellationToken);
+        var booking = await _bookings.GetDetailsAsync(id, _requestContext.CancellationToken);
         if (booking == null)
             return NotFound();
         var result = new

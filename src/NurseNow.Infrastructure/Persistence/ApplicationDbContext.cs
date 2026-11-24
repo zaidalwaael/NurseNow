@@ -1,14 +1,14 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NurseNow.Models;
-using NurseNow.Application.Abstractions;
-using Microsoft.EntityFrameworkCore.Storage;
-using System.Data;
 
 namespace NurseNow.Data
 {
-    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
+    public class ApplicationDbContext : DbContext
     {
+        public DbSet<ApplicationUser> Users => Set<ApplicationUser>();
+        public DbSet<IdentityRole> Roles => Set<IdentityRole>();
+        public DbSet<IdentityUserRole<string>> UserRoles => Set<IdentityUserRole<string>>();
         public DbSet<NurseProfile> NurseProfiles { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
@@ -29,16 +29,10 @@ namespace NurseNow.Data
         {
         }
 
-        public async Task<IApplicationTransaction> BeginTransactionAsync(CancellationToken cancellationToken) => new ApplicationTransaction(await Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken));
-        private sealed class ApplicationTransaction(IDbContextTransaction transaction) : IApplicationTransaction
-        {
-            public Task CommitAsync(CancellationToken cancellationToken) => transaction.CommitAsync(cancellationToken);
-            public ValueTask DisposeAsync() => transaction.DisposeAsync();
-        }
-
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+            NurseNow.Infrastructure.Identity.IdentityModelConfiguration.Configure(builder);
             builder.Entity<WeeklyAvailability>().Property(w => w.DayOfWeek).HasMaxLength(9);
             builder.Entity<Booking>().Property(b => b.Status).IsConcurrencyToken();
             builder.Entity<Payment>().Property(p => p.Status).IsConcurrencyToken();

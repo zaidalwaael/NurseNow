@@ -1,3 +1,15 @@
+# Repository and Unit of Work refactor — 2026-11-24
+
+- Replaced IApplicationDbContext/DbSet access with 14 explicit repository interfaces in Application and their EF Core implementations in Infrastructure.
+- Moved LINQ persistence queries out of all application services; consolidated repeated queries and added named read projections.
+- Added scoped IUnitOfWork/UnitOfWork and application-owned transaction contracts. All business repositories and Identity user writes share one context.
+- Removed EF Core and ASP.NET Identity dependencies from Domain/Application. Kept Microsoft UserManager behind IIdentityService and implemented a staged infrastructure user store.
+- Preserved the Identity schema and existing migrations; the SQL Server model comparison finds no differences.
+- Routed file ownership checks and JWT account validation through application interfaces.
+- Updated regressions, architecture documentation and CI. See VALIDATION.md for 60 passing checks and the limits of validation.
+
+---
+
 # Changes and rationale
 
 - Split the single web project into four projects with inward project references and explicit DI registration.

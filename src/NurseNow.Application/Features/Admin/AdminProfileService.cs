@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+using NurseNow.Application.Repositories;
 using NurseNow.Models;
 using System.Security.Claims;
 using NurseNow.Application.Abstractions;
@@ -7,12 +7,14 @@ using NurseNow.Application.Common;
 namespace NurseNow.Application.Features.Admin;
 public sealed class AdminProfileService : ApplicationService
 {
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IRequestContext _requestContext;
-    private readonly UserManager<ApplicationUser> _userManager;
-    public AdminProfileService(UserManager<ApplicationUser> userManager, IRequestContext requestContext)
+    private readonly IIdentityService _identityService;
+    public AdminProfileService(IIdentityService identityService, IUnitOfWork unitOfWork, IRequestContext requestContext)
     {
+        _unitOfWork = unitOfWork;
         _requestContext = requestContext;
-        _userManager = userManager;
+        _identityService = identityService;
     }
 
     public async Task<OperationResult> GetProfile()
@@ -20,7 +22,7 @@ public sealed class AdminProfileService : ApplicationService
         var userId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userId == null)
             return Unauthorized();
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _identityService.FindByIdAsync(userId);
         if (user == null)
             return NotFound(new { message = "Admin not found" });
         return Ok(new { fullName = user.FullName, email = user.Email, address = user.Location, phoneNumber = user.PhoneNumber });
@@ -31,7 +33,7 @@ public sealed class AdminProfileService : ApplicationService
         var userId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (userId == null)
             return Unauthorized();
-        var user = await _userManager.FindByIdAsync(userId);
+        var user = await _identityService.FindByIdAsync(userId);
         if (user == null)
             return NotFound(new { message = "Admin not found" });
         if (string.IsNullOrWhiteSpace(dto.FullName))
@@ -43,15 +45,16 @@ public sealed class AdminProfileService : ApplicationService
         {
             if (dto.NewPassword != dto.ConfirmPassword)
                 return BadRequest(new { message = "Passwords do not match" });
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var passwordResult = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
+            var token = await _identityService.GeneratePasswordResetTokenAsync(user);
+            var passwordResult = await _identityService.ResetPasswordAsync(user, token, dto.NewPassword);
             if (!passwordResult.Succeeded)
                 return BadRequest(passwordResult.Errors);
         }
 
-        var result = await _userManager.UpdateAsync(user);
+        var result = await _identityService.UpdateAsync(user);
         if (!result.Succeeded)
             return BadRequest(result.Errors);
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Profile updated successfully", fullName = user.FullName, email = user.Email, address = user.Location, phoneNumber = user.PhoneNumber });
     }
 }

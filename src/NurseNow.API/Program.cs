@@ -53,8 +53,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         OnTokenValidated = async context =>
         {
             var id = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
-            var db = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
-            var user = await db.Users.AsNoTracking().Where(u => u.Id == id).Select(u => new { u.AccountStatus, u.AdminApprovalStatus, u.RoleType, u.AdminRole, u.SecurityStamp }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+            var users = context.HttpContext.RequestServices.GetRequiredService<NurseNow.Application.Abstractions.IIdentityService>();
+            var user = id is null ? null : await users.FindByIdAsync(id);
             if (user is null || user.AccountStatus != "Active" || (user.RoleType == "Administrator" && user.AdminApprovalStatus != "Active") || user.SecurityStamp != context.Principal?.FindFirstValue("security_stamp") || (user.AdminRole ?? "") != context.Principal?.FindFirstValue("admin_role"))
                 context.Fail("Account or token is no longer valid.");
         }
@@ -102,7 +102,7 @@ if (builder.Configuration.GetValue<bool>("Database:SeedOnStartup"))
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await using var transaction = await db.Database.BeginTransactionAsync();
-    await RoleSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>(), scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(), builder.Configuration);
+    await RoleSeeder.SeedRolesAndAdminAsync(scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>(), scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>(), builder.Configuration, scope.ServiceProvider.GetRequiredService<IUnitOfWork>());
     await ServiceCatalogSeeder.SeedServiceCatalogAsync(db);
     await transaction.CommitAsync();
 }

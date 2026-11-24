@@ -1,0 +1,19 @@
+name: Backend validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-and-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.318
+            8.0.x
+      - run: dotnet restore NurseNow.sln
+      - run: dotnet build NurseNow.sln --no-restore --configuration Release
+      - run: dotnet run --project tests/NurseNow.RegressionTests --configuration Release --no-build -- docs/endpoint-baseline.json

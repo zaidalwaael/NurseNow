@@ -1,5 +1,5 @@
+using NurseNow.Application.Repositories;
 using System.Security.Claims;
-using Microsoft.EntityFrameworkCore;
 using NurseNow.DTOs.Nurse;
 using NurseNow.Models;
 using NurseNow.Application.Abstractions;
@@ -9,11 +9,15 @@ namespace NurseNow.Application.Features;
 public sealed class NurseProblemsService : ApplicationService
 {
     private readonly IRequestContext _requestContext;
-    private readonly IApplicationDbContext _context;
-    public NurseProblemsService(IApplicationDbContext context, IRequestContext requestContext)
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IComplaintRepository _complaints;
+    private readonly IAdminActivityLogRepository _adminActivityLogs;
+    public NurseProblemsService(IUnitOfWork unitOfWork, IComplaintRepository complaints, IAdminActivityLogRepository adminActivityLogs, IRequestContext requestContext)
     {
         _requestContext = requestContext;
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _complaints = complaints;
+        _adminActivityLogs = adminActivityLogs;
     }
 
     // =========================================
@@ -21,7 +25,7 @@ public sealed class NurseProblemsService : ApplicationService
     // =========================================
     public async Task<OperationResult> SubmitProblem(SubmitProblemDto dto)
     {
-        var nurseId = _requestContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var nurseId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(nurseId))
             return Unauthorized();
         var allowedCategories = new[]
@@ -54,9 +58,9 @@ public sealed class NurseProblemsService : ApplicationService
             Status = "Open",
             CreatedAt = DateTime.UtcNow
         };
-        _context.Complaints.Add(complaint);
-        _context.AdminActivityLogs.Add(new AdminActivityLog { Title = "New Nurse Problem Report", Description = $"A nurse submitted a new problem report: {dto.Subject}", ActivityType = "Complaint", CreatedAt = DateTime.UtcNow });
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        _complaints.Add(complaint);
+        _adminActivityLogs.Add(new AdminActivityLog { Title = "New Nurse Problem Report", Description = $"A nurse submitted a new problem report: {dto.Subject}", ActivityType = "Complaint", CreatedAt = DateTime.UtcNow });
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Problem report submitted successfully.", complaintId = complaint.ComplaintId });
     }
 
@@ -65,10 +69,10 @@ public sealed class NurseProblemsService : ApplicationService
     // =========================================
     public async Task<OperationResult> GetMyReports()
     {
-        var nurseId = _requestContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var nurseId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(nurseId))
             return Unauthorized();
-        var reports = await _context.Complaints.AsNoTracking().Where(c => c.UserId == nurseId).OrderByDescending(c => c.CreatedAt).Select(c => new NurseProblemItemDto { ComplaintId = c.ComplaintId, Category = c.Category, Subject = c.Subject, Status = c.Status, IsUrgent = c.IsUrgent, CreatedAt = c.CreatedAt }).ToListAsync(_requestContext.CancellationToken);
+        var reports = await _complaints.ListNurseProblemsAsync(nurseId, _requestContext.CancellationToken);
         return Ok(reports);
     }
 
@@ -77,10 +81,10 @@ public sealed class NurseProblemsService : ApplicationService
     // =========================================
     public async Task<OperationResult> GetProblemDetails(int id)
     {
-        var nurseId = _requestContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var nurseId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(nurseId))
             return Unauthorized();
-        var report = await _context.Complaints.AsNoTracking().Where(c => c.ComplaintId == id && c.UserId == nurseId).Select(c => new NurseProblemDetailsDto { ComplaintId = c.ComplaintId, Category = c.Category, Subject = c.Subject, Description = c.Description, IsUrgent = c.IsUrgent, Status = c.Status, AdminResponse = c.AdminResponse, CreatedAt = c.CreatedAt, RespondedAt = c.RespondedAt }).FirstOrDefaultAsync(_requestContext.CancellationToken);
+        var report = await _complaints.GetNurseProblemAsync(id, nurseId, _requestContext.CancellationToken);
         if (report == null)
             return NotFound(new { message = "Problem report not found." });
         return Ok(report);

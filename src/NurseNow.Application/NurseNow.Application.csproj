@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-<ItemGroup>
-<ProjectReference Include="../NurseNow.Domain/NurseNow.Domain.csproj" />
-<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.0" />
-<PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="8.0.0" />
-</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../NurseNow.Domain/NurseNow.Domain.csproj" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+  </ItemGroup>
 </Project>

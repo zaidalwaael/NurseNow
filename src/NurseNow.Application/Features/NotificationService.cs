@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using NurseNow.Application.Repositories;
 using System.Security.Claims;
 using NurseNow.Application.Abstractions;
 using NurseNow.Application.Common;
@@ -7,11 +7,13 @@ namespace NurseNow.Application.Features;
 public sealed class NotificationService : ApplicationService
 {
     private readonly IRequestContext _requestContext;
-    private readonly IApplicationDbContext _context;
-    public NotificationService(IApplicationDbContext context, IRequestContext requestContext)
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationRepository _notifications;
+    public NotificationService(IUnitOfWork unitOfWork, INotificationRepository notifications, IRequestContext requestContext)
     {
         _requestContext = requestContext;
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _notifications = notifications;
     }
 
     public async Task<OperationResult> GetNotifications()
@@ -19,7 +21,7 @@ public sealed class NotificationService : ApplicationService
         var userId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
-        var notifications = await _context.Notifications.AsNoTracking().Where(n => n.UserId == userId).OrderByDescending(n => n.CreatedAt).Select(n => new { n.NotificationId, n.Title, n.Message, n.Type, n.BookingId, n.IsRead, n.CreatedAt, targetScreen = n.Type == "Request" ? "RequestDetails" : n.Type == "Payment" ? "AppointmentDetails" : n.Type == "Booking" ? "AppointmentDetails" : n.Type == "Account" ? null : null }).ToListAsync(_requestContext.CancellationToken);
+        var notifications = await _notifications.ListForUserAsync(userId, _requestContext.CancellationToken);
         return Ok(notifications);
     }
 
@@ -28,11 +30,11 @@ public sealed class NotificationService : ApplicationService
         var userId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
-        var notification = await _context.Notifications.FirstOrDefaultAsync(n => n.NotificationId == id && n.UserId == userId, _requestContext.CancellationToken);
+        var notification = await _notifications.GetForUserAsync(id, userId, _requestContext.CancellationToken);
         if (notification == null)
             return NotFound("Notification not found.");
         notification.IsRead = true;
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Notification marked as read." });
     }
 
@@ -41,7 +43,9 @@ public sealed class NotificationService : ApplicationService
         var userId = _requestContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
-        await _context.Notifications.Where(n => n.UserId == userId && !n.IsRead).ExecuteUpdateAsync(setters => setters.SetProperty(n => n.IsRead, true), _requestContext.CancellationToken);
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(_requestContext.CancellationToken);
+        await _notifications.MarkAllReadAsync(userId, _requestContext.CancellationToken);
+        await transaction.CommitAsync(_requestContext.CancellationToken);
         return Ok(new { message = "All notifications marked as read." });
     }
 }

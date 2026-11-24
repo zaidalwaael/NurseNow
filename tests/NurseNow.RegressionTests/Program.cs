@@ -1,3 +1,13 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Metadata;
+using NurseNow.Application.Repositories;
+using NurseNow.Infrastructure.Identity;
+using NurseNow.Infrastructure.Persistence;
+using NurseNow.Infrastructure.Persistence.Repositories;
 using System.Security.Claims;
 using System.Reflection;
 using System.Text.Json;
@@ -75,10 +85,25 @@ db.Notifications.AddRange(new Notification { UserId = patient.Id, Title = "P", M
 await db.SaveChangesAsync();
 var context = new TestContext(patient.Id);
 var gateway = new TestGateway();
-var patients = new PatientService(db, gateway, context);
+var registrations = new ServiceCollection();
+registrations.AddLogging();
+registrations.AddSingleton<ApplicationDbContext>(db);
+registrations.AddSingleton<IUnitOfWork, UnitOfWork>();
+foreach (var implementation in typeof(BookingRepository).Assembly.GetTypes().Where(t => t.Namespace == typeof(BookingRepository).Namespace && t.IsClass && !t.IsAbstract))
+    foreach (var contract in implementation.GetInterfaces().Where(t => t.Namespace == typeof(IBookingRepository).Namespace))
+        registrations.AddSingleton(contract, implementation);
+registrations.AddIdentityCore<ApplicationUser>(o => { o.Password.RequiredLength = 12; o.User.RequireUniqueEmail = true; })
+    .AddRoles<IdentityRole>().AddUserStore<ApplicationUserStore>()
+    .AddRoleStore<RoleStore<IdentityRole, ApplicationDbContext, string>>().AddDefaultTokenProviders();
+registrations.AddDataProtection();
+registrations.AddSingleton<IIdentityService, IdentityService>();
+registrations.AddSingleton<IRequestContext>(context);
+registrations.AddSingleton<IPaymentGateway>(gateway);
+using var provider = registrations.BuildServiceProvider();
+var patients = ActivatorUtilities.CreateInstance<PatientService>(provider);
 Check((await patients.BrowseNurses(new BrowseNursesQueryDto { PageSize = 0 })).Kind == ResultKind.Invalid, "Pagination rejects zero page size");
-Check((await new AuthService(null !, null !, db, null !, context).Register(new RegisterDto { Role = "Administrator" })).Kind == ResultKind.Invalid, "Public registration cannot create administrators");
-var notifications = new NotificationService(db, context);
+Check((await new AuthService(null!, null!, provider.GetRequiredService<IUnitOfWork>(), provider.GetRequiredService<INurseProfileRepository>(), provider.GetRequiredService<IPatientProfileRepository>(), provider.GetRequiredService<IAdminActivityLogRepository>(), null!, context).Register(new RegisterDto { Role = "Administrator" })).Kind == ResultKind.Invalid, "Public registration cannot create administrators");
+var notifications = ActivatorUtilities.CreateInstance<NotificationService>(provider);
 await notifications.MarkAllAsRead();
 db.ChangeTracker.Clear();
 Check(await db.Notifications.Where(n => n.UserId == patient.Id).AllAsync(n => n.IsRead) && await db.Notifications.Where(n => n.UserId == nurse.Id).AllAsync(n => !n.IsRead), "Bulk read preserves other users' notifications");
@@ -97,7 +122,7 @@ gateway.Paid = true;
 Check((await patients.ConfirmPayment(booking.BookingId)).Kind == ResultKind.Success, "Verified payment accepted");
 Check((await db.Payments.SingleAsync()).Status == "Paid" && (await db.Bookings.SingleAsync(b => b.BookingId == booking.BookingId)).Status == "Active", "Payment and booking update together");
 Check((await patients.ConfirmPayment(booking.BookingId)).Kind == ResultKind.Invalid, "Duplicate payment confirmation rejected");
-Check((await new PatientService(db, gateway, new TestContext(nurse.Id)).ConfirmPayment(booking.BookingId)).Kind == ResultKind.NotFound, "Payment ownership enforced");
+Check((await ActivatorUtilities.CreateInstance<PatientService>(provider, new TestContext(nurse.Id)).ConfirmPayment(booking.BookingId)).Kind == ResultKind.NotFound, "Payment ownership enforced");
 Check(!UploadPolicy.IsAllowed("payload.exe", 100, false) && !UploadPolicy.IsAllowed("photo.jpg", UploadPolicy.MaxBytes + 1, false), "Unsafe extension and oversized upload rejected");
 await using var other = new RelationalTestDbContext(options);
 var stale = await other.Bookings.SingleAsync(b => b.BookingId == booking.BookingId);
@@ -124,7 +149,7 @@ try
     (await db.NurseProfiles.SingleAsync()).CertificatePath = "api/files/document.pdf";
     await db.SaveChangesAsync();
     var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:Root"] = folder }).Build();
-    var files = new NurseNow.API.Controllers.FilesController(db, configuration)
+    var files = new NurseNow.API.Controllers.FilesController(provider.GetRequiredService<INurseDocumentRepository>(), configuration)
     {
         ControllerContext = new ControllerContext
         {
@@ -144,6 +169,9 @@ finally
     Directory.Delete(folder, true);
 }
 
+await RepositoryQueryChecks.RunAsync(provider, db, Check);
+await ArchitectureChecks.RunAsync(provider, db, options, Check);
+await AuthFlowChecks.RunAsync(provider, db, Check);
 var assembly = typeof(NurseNow.Controllers.PatientController).Assembly;
 var baseline = JsonDocument.Parse(await File.ReadAllTextAsync(args.FirstOrDefault() ?? "docs/endpoint-baseline.json"));
 foreach (var row in baseline.RootElement.EnumerateArray())
