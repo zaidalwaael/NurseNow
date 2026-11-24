@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using NurseNow.Application.Repositories;
 using NurseNow.DTOs;
 using NurseNow.Models;
 using System.Security.Claims;
@@ -9,11 +9,15 @@ namespace NurseNow.Application.Features;
 public sealed class ReviewService : ApplicationService
 {
     private readonly IRequestContext _requestContext;
-    private readonly IApplicationDbContext _context;
-    public ReviewService(IApplicationDbContext context, IRequestContext requestContext)
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly IBookingRepository _bookings;
+    private readonly IReviewRepository _reviews;
+    public ReviewService(IUnitOfWork unitOfWork, IBookingRepository bookings, IReviewRepository reviews, IRequestContext requestContext)
     {
         _requestContext = requestContext;
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _bookings = bookings;
+        _reviews = reviews;
     }
 
     private string? GetCurrentUserId()
@@ -28,7 +32,7 @@ public sealed class ReviewService : ApplicationService
             return Unauthorized();
         if (model.Rating < 1 || model.Rating > 5)
             return BadRequest("Rating must be between 1 and 5.");
-        var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == model.BookingId && b.PatientId == patientId, _requestContext.CancellationToken);
+        var booking = await _bookings.GetReviewBookingForUpdateAsync(model, patientId, _requestContext.CancellationToken);
         if (booking == null)
             return NotFound("Booking not found.");
         if (booking.Status != "Completed")
@@ -45,10 +49,10 @@ public sealed class ReviewService : ApplicationService
             Rating = model.Rating,
             Comment = model.Comment
         };
-        _context.Reviews.Add(review);
+        _reviews.Add(review);
         booking.IsReviewSubmitted = true;
         booking.ReviewRemindLaterAt = null;
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Review submitted successfully." });
     }
 
@@ -57,7 +61,7 @@ public sealed class ReviewService : ApplicationService
         var patientId = GetCurrentUserId();
         if (string.IsNullOrEmpty(patientId))
             return Unauthorized();
-        var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId, _requestContext.CancellationToken);
+        var booking = await _bookings.GetPatientBookingForUpdateAsync(bookingId, patientId, _requestContext.CancellationToken);
         if (booking == null)
             return NotFound("Booking not found.");
         if (booking.Status != "Completed")
@@ -66,7 +70,7 @@ public sealed class ReviewService : ApplicationService
             return BadRequest("Review already submitted.");
         booking.IsReviewDismissed = true;
         booking.ReviewRemindLaterAt = null;
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Review prompt dismissed successfully." });
     }
 
@@ -75,7 +79,7 @@ public sealed class ReviewService : ApplicationService
         var patientId = GetCurrentUserId();
         if (string.IsNullOrEmpty(patientId))
             return Unauthorized();
-        var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PatientId == patientId, _requestContext.CancellationToken);
+        var booking = await _bookings.GetPatientBookingForUpdateAsync(bookingId, patientId, _requestContext.CancellationToken);
         if (booking == null)
             return NotFound("Booking not found.");
         if (booking.Status != "Completed")
@@ -85,7 +89,7 @@ public sealed class ReviewService : ApplicationService
         if (booking.IsReviewDismissed)
             return BadRequest("Review already dismissed.");
         booking.ReviewRemindLaterAt = DateTime.UtcNow.AddDays(1);
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok(new { message = "Review reminder postponed successfully." });
     }
 
@@ -95,7 +99,7 @@ public sealed class ReviewService : ApplicationService
         if (string.IsNullOrEmpty(patientId))
             return Unauthorized();
         var now = DateTime.UtcNow;
-        var booking = await _context.Bookings.AsNoTracking().Include(b => b.Nurse).Include(b => b.Service).ThenInclude(s => s.ServiceCatalog).Where(b => b.PatientId == patientId && b.Status == "Completed" && !b.IsReviewSubmitted && !b.IsReviewDismissed && (b.ReviewRemindLaterAt == null || b.ReviewRemindLaterAt <= now)).OrderByDescending(b => b.BookingDate).ThenByDescending(b => b.StartTime).FirstOrDefaultAsync(_requestContext.CancellationToken);
+        var booking = await _bookings.GetPendingReviewAsync(patientId, now, _requestContext.CancellationToken);
         if (booking == null)
             return Ok(null);
         return Ok(new { bookingId = booking.BookingId, nurseId = booking.NurseId, nurseName = booking.Nurse.FullName, serviceName = booking.Service.ServiceCatalog.Name, date = booking.BookingDate.ToString("yyyy-MM-dd"), time = booking.StartTime.ToString(@"hh\:mm") });

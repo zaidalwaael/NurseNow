@@ -5,7 +5,7 @@ using NurseNow.Models;
 namespace NurseNow.Seed;
 public static class RoleSeeder
 {
-    public static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roles, UserManager<ApplicationUser> users, IConfiguration configuration)
+    public static async Task SeedRolesAndAdminAsync(RoleManager<IdentityRole> roles, UserManager<ApplicationUser> users, IConfiguration configuration, NurseNow.Application.Abstractions.IUnitOfWork unitOfWork)
     {
         foreach (var name in new[]
         {
@@ -44,5 +44,6 @@ public static class RoleSeeder
             throw new InvalidOperationException("Admin seed failed: " + string.Join(",", created.Errors.Select(e => e.Code)));
         if (!(await users.AddToRoleAsync(user, "Administrator")).Succeeded)
             throw new InvalidOperationException("Admin role assignment failed.");
+        await unitOfWork.SaveChangesAsync();
     }
 }

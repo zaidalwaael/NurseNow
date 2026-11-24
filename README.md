@@ -1,10 +1,12 @@
-# NurseNow — four-layer refactor
+# NurseNow — Clean Architecture + Repository + Unit of Work
 
 ابدأ من `NurseNow.sln`، واجعل `NurseNow.API` هو Startup Project.
 
 تم فصل الـ104 actions الفعّالة إلى Controllers رفيعة و23 Application Services، مع بقاء مساراتها وأدوار الوصول الأصلية. أضيفت حماية الملفات وhealth endpoint. النسخة مبنية على .NET 8 وSQL Server.
 
-هذه Clean Architecture عملية وليست نسخة خالية تمامًا من أطر العمل: Application تحتفظ بـEF LINQ عبر interface وUserManager؛ وApplicationUser يحتفظ بوراثة IdentityUser في Domain. التفاصيل والحدود في `docs/ARCHITECTURE.md`.
+واجهات المستودعات ووحدة العمل موجودة في طبقة التطبيق، وتنفيذها في طبقة البنية التحتية. طبقتا الدومين والتطبيق مستقلتان عن أطر قاعدة البيانات والهوية. تفاصيل المسؤوليات والمعاملات في `docs/ARCHITECTURE.md`.
+
+التعديل المعماري الحالي لا يضيف migration؛ تعليمات ترقية قاعدة البيانات أدناه تخص التغييرات الموجودة سابقًا في المشروع.
 
 ## التشغيل — PowerShell من مجلد الحل
 

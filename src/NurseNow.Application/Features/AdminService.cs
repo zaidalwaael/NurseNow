@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+using NurseNow.Application.Repositories;
 using NurseNow.DTOs;
 using NurseNow.Models;
 using NurseNow.Application.Abstractions;
@@ -8,16 +8,20 @@ namespace NurseNow.Application.Features;
 public sealed class AdminService : ApplicationService
 {
     private readonly IRequestContext _requestContext;
-    private readonly IApplicationDbContext _context;
-    public AdminService(IApplicationDbContext context, IRequestContext requestContext)
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly INurseProfileRepository _nurseProfiles;
+    private readonly INotificationRepository _notifications;
+    public AdminService(IUnitOfWork unitOfWork, INurseProfileRepository nurseProfiles, INotificationRepository notifications, IRequestContext requestContext)
     {
         _requestContext = requestContext;
-        _context = context;
+        _unitOfWork = unitOfWork;
+        _nurseProfiles = nurseProfiles;
+        _notifications = notifications;
     }
 
     public async Task<OperationResult> GetNurseDetails(string userId)
     {
-        var nurseProfile = await _context.NurseProfiles.AsNoTracking().Include(n => n.User).FirstOrDefaultAsync(n => n.UserId == userId, _requestContext.CancellationToken);
+        var nurseProfile = await _nurseProfiles.GetWithUserAsync(userId, _requestContext.CancellationToken);
         if (nurseProfile == null)
             return NotFound("Nurse not found");
         var baseUrl = _requestContext.PublicBaseUrl;
@@ -26,7 +30,7 @@ public sealed class AdminService : ApplicationService
 
     public async Task<OperationResult> UpdateNurseStatus(string userId, UpdateNurseStatusDto model)
     {
-        var nurseProfile = await _context.NurseProfiles.Include(n => n.User).FirstOrDefaultAsync(n => n.UserId == userId, _requestContext.CancellationToken);
+        var nurseProfile = await _nurseProfiles.GetForStatusUpdateAsync(userId, _requestContext.CancellationToken);
         if (nurseProfile == null)
             return NotFound("Nurse profile not found");
         model.Status = model.Status?.Trim() ?? string.Empty;
@@ -42,14 +46,14 @@ public sealed class AdminService : ApplicationService
 
         nurseProfile.VerificationStatus = model.Status;
         var notificationMessage = model.Status == "Approved" ? "Your account has been approved." : "Your account has been rejected.";
-        _context.Notifications.Add(new Notification { UserId = nurseProfile.UserId, Title = model.Status == "Approved" ? "Account Approved" : "Account Rejected", Message = notificationMessage, Type = "Account", CreatedAt = DateTime.UtcNow });
-        await _context.SaveChangesAsync(_requestContext.CancellationToken);
+        _notifications.Add(new Notification { UserId = nurseProfile.UserId, Title = model.Status == "Approved" ? "Account Approved" : "Account Rejected", Message = notificationMessage, Type = "Account", CreatedAt = DateTime.UtcNow });
+        await _unitOfWork.SaveChangesAsync(_requestContext.CancellationToken);
         return Ok($"Nurse status updated to {model.Status}");
     }
 
     public async Task<OperationResult> GetPendingNurses()
     {
-        var pendingNurses = await _context.NurseProfiles.AsNoTracking().Include(n => n.User).Where(n => n.VerificationStatus == "Pending").Select(n => new { n.UserId, n.Specialization, n.ExperienceYears, n.VerificationStatus, FullName = n.User.FullName, Email = n.User.Email }).ToListAsync(_requestContext.CancellationToken);
+        var pendingNurses = await _nurseProfiles.ListPendingSummariesAsync(_requestContext.CancellationToken);
         return Ok(pendingNurses);
     }
 }

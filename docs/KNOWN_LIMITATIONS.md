@@ -1,6 +1,6 @@
 # Boundaries and remaining work
 
-- This is a refactor and targeted hardening pass, not a production/security certification. See ARCHITECTURE.md for retained EF/Identity coupling.
+- This is a refactor and targeted hardening pass, not a production/security certification. See ARCHITECTURE.md for persistence boundaries and the supported Identity store contracts.
 - No access to the user's SQL Server, live Stripe/SMTP configuration or frontends. SQL scripts were generated, not applied. SQLite tests cannot prove SQL Server locking, query plans or schema upgrade compatibility.
 - Payments still require the client to invoke confirmation. A signed Stripe webhook plus reconciliation/outbox and refund/cancellation policy are not implemented. A successfully captured payment concurrent with booking cancellation needs reconciliation.
 - The original forgot-password endpoint only acknowledges requests; it does not generate or deliver reset tokens. The original registration's EmailConfirmed behavior remains. The SMTP adapter is retained but not presented as a completed email-verification flow.
